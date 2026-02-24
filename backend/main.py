@@ -6,7 +6,12 @@ from pydantic import BaseModel
 import csv
 import io
 from datetime import datetime
-from .services.rule_engine import apply_rule
+import sys
+from pathlib import Path
+
+# Add backend directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+from services.rule_engine import apply_rule
 
 # Database connection
 DATABASE_URL = "postgresql://postgres@127.0.0.1/mdm_db"
