@@ -18,7 +18,7 @@ export default function LogsPage() {
     setLoading(true);
     try {
       const response = await apiService.getLogs(jId);
-      setLogs(response);
+      setLogs(Array.isArray(response) ? response : []);
       setMessage('');
     } catch (error) {
       setMessage(`Error fetching logs: ${error.message}`);

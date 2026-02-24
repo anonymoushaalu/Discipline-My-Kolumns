@@ -11,6 +11,7 @@ export default function Navbar() {
         <div style={styles.links}>
           <Link to="/" style={styles.link}>Dashboard</Link>
           <Link to="/create-job" style={styles.link}>📤 Create Job</Link>
+          <Link to="/data" style={styles.link}>💾 Data</Link>
           <Link to="/rules" style={styles.link}>⚙️ Rules</Link>
           <Link to="/quarantine" style={styles.link}>⚠️ Quarantine</Link>
         </div>

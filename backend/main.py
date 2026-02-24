@@ -520,3 +520,31 @@ def get_logs(job_id: int):
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/clean-data")
+def get_clean_data(limit: int = 5):
+    """Get clean data from the database"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(f"""
+                SELECT id, job_id, name, age, created_at
+                FROM clean_data
+                ORDER BY id DESC
+                LIMIT {limit}
+            """))
+            
+            rows = result.fetchall()
+        
+        return [
+            {
+                "id": r[0],
+                "job_id": r[1],
+                "name": r[2] or "",
+                "age": r[3],
+                "created_at": str(r[4]) if r[4] else None
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
