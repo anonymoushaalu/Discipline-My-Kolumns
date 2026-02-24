@@ -335,3 +335,173 @@ def get_jobs():
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/quarantine")
+def get_quarantine():
+    """Get all quarantined rows"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT id, job_id, name, age, error_reason, created_at
+                FROM quarantine_data
+                ORDER BY created_at DESC
+            """))
+            rows = result.fetchall()
+        
+        return [
+            {
+                "id": r[0],
+                "job_id": r[1],
+                "name": r[2],
+                "age": r[3],
+                "error_reason": r[4],
+                "created_at": str(r[5])
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/update-quarantine/{row_id}")
+def update_quarantine(row_id: int, name: str, age: int):
+    """Update a quarantined row"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE quarantine_data
+                SET name = :name, age = :age
+                WHERE id = :id
+            """), {
+                "name": name,
+                "age": age,
+                "id": row_id
+            })
+            conn.commit()
+        return {"message": "Row updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/revalidate/{row_id}")
+def revalidate_row(row_id: int):
+    """Re-validate a quarantined row and move to clean_data if valid"""
+    try:
+        with engine.connect() as conn:
+            # Fetch quarantined row
+            row_result = conn.execute(text("""
+                SELECT id, job_id, name, age, error_reason
+                FROM quarantine_data
+                WHERE id = :id
+            """), {"id": row_id})
+            
+            row = row_result.fetchone()
+            
+            if not row:
+                raise HTTPException(status_code=404, detail="Row not found")
+            
+            # Fetch active rules
+            rules_result = conn.execute(text("""
+                SELECT column_name, rule_type, rule_value
+                FROM rules
+                WHERE is_active = TRUE
+            """))
+            
+            rules = rules_result.fetchall()
+            
+            # Build rule_map
+            rule_map = {}
+            for r in rules:
+                rule_map.setdefault(r[0], []).append({
+                    "type": r[1],
+                    "value": r[2]
+                })
+            
+            # Re-validate the row
+            row_valid = True
+            validation_errors = []
+            
+            # Check name
+            if "name" in rule_map:
+                for rule in rule_map["name"]:
+                    if not apply_rule(row[2], rule["type"], rule["value"]):
+                        row_valid = False
+                        validation_errors.append(f"name failed {rule['type']}")
+            
+            # Check age
+            if "age" in rule_map:
+                for rule in rule_map["age"]:
+                    if not apply_rule(row[3], rule["type"], rule["value"]):
+                        row_valid = False
+                        validation_errors.append(f"age failed {rule['type']}")
+            
+            if row_valid:
+                # Move to clean_data
+                conn.execute(text("""
+                    INSERT INTO clean_data (job_id, name, age, created_at)
+                    VALUES (:job_id, :name, :age, NOW())
+                """), {
+                    "job_id": row[1],
+                    "name": row[2],
+                    "age": row[3]
+                })
+                
+                # Delete from quarantine
+                conn.execute(text("""
+                    DELETE FROM quarantine_data
+                    WHERE id = :id
+                """), {"id": row_id})
+                
+                # Log the correction
+                conn.execute(text("""
+                    INSERT INTO logs (job_id, row_number, column_name, original_value, final_value, status_color, rule_applied)
+                    VALUES (:job_id, :row_number, 'system', :original, :final, 'green', 'revalidation')
+                """), {
+                    "job_id": row[1],
+                    "row_number": row[0],
+                    "original": row[4],
+                    "final": "CORRECTED"
+                })
+                
+                conn.commit()
+                return {"status": "success", "message": "Row moved to clean_data"}
+            else:
+                return {"status": "invalid", "message": "Row still invalid", "errors": validation_errors}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/logs/{job_id}")
+def get_logs(job_id: int):
+    """Get all logs for a specific job"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT id, job_id, row_number, column_name, original_value, final_value, status_color, rule_applied, created_at
+                FROM logs
+                WHERE job_id = :job_id
+                ORDER BY row_number, id
+            """), {"job_id": job_id})
+            
+            logs = result.fetchall()
+        
+        return [
+            {
+                "id": l[0],
+                "job_id": l[1],
+                "row_number": l[2],
+                "column_name": l[3] or "",
+                "original_value": l[4] or "",
+                "final_value": l[5] or "",
+                "status_color": l[6] or "unknown",
+                "rule_applied": l[7] or "",
+                "created_at": str(l[8])
+            }
+            for l in logs
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

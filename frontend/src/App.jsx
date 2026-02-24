@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import RulesPage from './pages/RulesPage';
 import JobsDashboard from './components/JobsDashboard';
+import QuarantinePage from './pages/QuarantinePage';
+import LogsPage from './pages/LogsPage';
 import './App.css';
 
 export default function App() {
@@ -105,6 +107,36 @@ export default function App() {
         >
           📊 Dashboard
         </button>
+        <button
+          onClick={() => setCurrentTab('quarantine')}
+          style={{
+            flex: 1,
+            padding: '15px',
+            border: 'none',
+            backgroundColor: currentTab === 'quarantine' ? '#dc3545' : 'transparent',
+            color: currentTab === 'quarantine' ? 'white' : '#333',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: currentTab === 'quarantine' ? 'bold' : 'normal'
+          }}
+        >
+          ⚠️ Quarantine
+        </button>
+        <button
+          onClick={() => setCurrentTab('logs')}
+          style={{
+            flex: 1,
+            padding: '15px',
+            border: 'none',
+            backgroundColor: currentTab === 'logs' ? '#17a2b8' : 'transparent',
+            color: currentTab === 'logs' ? 'white' : '#333',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: currentTab === 'logs' ? 'bold' : 'normal'
+          }}
+        >
+          📋 Audit Logs
+        </button>
       </div>
 
       <div style={{ padding: '20px' }}>
@@ -167,6 +199,8 @@ export default function App() {
 
         {currentTab === 'rules' && <RulesPage />}
         {currentTab === 'dashboard' && <JobsDashboard />}
+        {currentTab === 'quarantine' && <QuarantinePage />}
+        {currentTab === 'logs' && <LogsPage />}
       </div>
     </div>
   );
