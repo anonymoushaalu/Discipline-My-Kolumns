@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { apiService } from '../services/api';
 
 export default function QuarantinePage() {
   const [rows, setRows] = useState([]);
@@ -16,8 +16,8 @@ export default function QuarantinePage() {
 
   const fetchQuarantine = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/quarantine');
-      setRows(response.data);
+      const response = await apiService.getQuarantine();
+      setRows(response);
       setMessage('');
     } catch (error) {
       setMessage(`Error fetching quarantine: ${error.message}`);
@@ -33,16 +33,7 @@ export default function QuarantinePage() {
 
   const handleSave = async (id) => {
     try {
-      await axios.put(
-        `http://localhost:8000/update-quarantine/${id}`,
-        null,
-        {
-          params: {
-            name: editValues.name,
-            age: editValues.age
-          }
-        }
-      );
+      await apiService.updateQuarantine(id, editValues.name, editValues.age);
       setMessage('✅ Row updated successfully');
       setEditingId(null);
       fetchQuarantine();
@@ -53,11 +44,11 @@ export default function QuarantinePage() {
 
   const handleRevalidate = async (id) => {
     try {
-      const response = await axios.post(`http://localhost:8000/revalidate/${id}`);
-      if (response.data.status === 'success') {
-        setMessage(`✅ ${response.data.message}`);
+      const response = await apiService.revalidate(id);
+      if (response.status === 'success') {
+        setMessage(`✅ ${response.message}`);
       } else {
-        setMessage(`⚠️ Row still invalid: ${response.data.errors?.join(', ')}`);
+        setMessage(`⚠️ Row still invalid: ${response.errors?.join(', ')}`);
       }
       fetchQuarantine();
     } catch (error) {

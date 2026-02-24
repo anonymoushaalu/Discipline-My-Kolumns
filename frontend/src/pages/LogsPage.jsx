@@ -1,35 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useParams } from 'react-router-dom';
+import { apiService } from '../services/api';
 
 export default function LogsPage() {
-  const [jobId, setJobId] = useState('');
+  const { jobId } = useParams();
   const [logs, setLogs] = useState([]);
-  const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    fetchJobs();
-  }, []);
-
-  const fetchJobs = async () => {
-    try {
-      const response = await axios.get('http://localhost:8000/jobs');
-      setJobs(response.data);
-      if (response.data.length > 0) {
-        setJobId(response.data[0].id.toString());
-        fetchLogs(response.data[0].id);
-      }
-    } catch (error) {
-      setMessage(`Error fetching jobs: ${error.message}`);
+    if (jobId) {
+      fetchLogs(jobId);
     }
-  };
+  }, [jobId]);
 
   const fetchLogs = async (jId) => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:8000/logs/${jId}`);
-      setLogs(response.data);
+      const response = await apiService.getLogs(jId);
+      setLogs(response);
       setMessage('');
     } catch (error) {
       setMessage(`Error fetching logs: ${error.message}`);
@@ -37,12 +26,6 @@ export default function LogsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleJobChange = (e) => {
-    const newJobId = e.target.value;
-    setJobId(newJobId);
-    fetchLogs(newJobId);
   };
 
   const getStatusColor = (color) => {
@@ -67,7 +50,7 @@ export default function LogsPage() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '20px auto', padding: '20px', fontFamily: 'Arial' }}>
-      <h2>📋 Audit Logs & Validation Details</h2>
+      <h2>📋 Audit Logs & Validation Details (Job #{jobId})</h2>
 
       {message && (
         <div
@@ -83,27 +66,6 @@ export default function LogsPage() {
           {message}
         </div>
       )}
-
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ marginRight: '10px', fontWeight: 'bold' }}>Select Job:</label>
-        <select
-          value={jobId}
-          onChange={handleJobChange}
-          style={{
-            padding: '8px 12px',
-            borderRadius: '4px',
-            border: '1px solid #ddd',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}
-        >
-          {jobs.map((job) => (
-            <option key={job.id} value={job.id}>
-              Job {job.id} - {job.job_name} ({job.total_rows} rows)
-            </option>
-          ))}
-        </select>
-      </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '20px' }}>Loading logs...</div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { apiService } from '../services/api';
 
 export default function RulesPage() {
   const [columnName, setColumnName] = useState('');
@@ -14,13 +14,7 @@ export default function RulesPage() {
     setMessage('');
 
     try {
-      const response = await axios.post('http://localhost:8000/add-rule', null, {
-        params: {
-          column_name: columnName,
-          rule_type: ruleType,
-          rule_value: ruleValue
-        }
-      });
+      await apiService.addRule(columnName, ruleType, ruleValue);
 
       setMessage('✅ Rule added successfully');
       setColumnName('');
