@@ -16,20 +16,70 @@ export default function Dashboard() {
   const fetchJobs = async () => {
     try {
       const response = await apiService.getJobs();
-      setJobs(response.data);
+      setJobs(Array.isArray(response) ? response : []);
       setError('');
     } catch (err) {
-      setError(`Error fetching jobs: ${err.message}`);
+      setError(`Error loading jobs: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}>Loading jobs...</div>;
+  if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}>⏳ Loading dashboard...</div>;
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
-      <h1>📊 Job Dashboard</h1>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px', fontFamily: 'Arial' }}>
+      {/* Process Overview */}
+      <div style={{
+        padding: '30px',
+        backgroundColor: '#e7f3ff',
+        borderRadius: '8px',
+        marginBottom: '30px',
+        border: '2px solid #007bff'
+      }}>
+        <h2 style={{ marginTop: 0, color: '#007bff' }}>🎯 How It Works</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+          <div>
+            <h4 style={{ marginTop: 0 }}>📤 Step 1: Upload Data</h4>
+            <p style={{ fontSize: '14px', marginBottom: 0 }}>
+              Import your CSV, Excel, or database data through the Create Job page.
+            </p>
+          </div>
+          <div>
+            <h4 style={{ marginTop: 0 }}>✅ Step 2: Validate</h4>
+            <p style={{ fontSize: '14px', marginBottom: 0 }}>
+              System automatically applies rules to check data quality.
+            </p>
+          </div>
+          <div>
+            <h4 style={{ marginTop: 0 }}>🗂️ Step 3: Sort</h4>
+            <p style={{ fontSize: '14px', marginBottom: 0 }}>
+              Clean data goes to ready-to-use database. Bad data goes to quarantine.
+            </p>
+          </div>
+          <div>
+            <h4 style={{ marginTop: 0 }}>🔧 Step 4: Fix & Review</h4>
+            <p style={{ fontSize: '14px', marginBottom: 0 }}>
+              Edit quarantined data and re-validate until it's clean.
+            </p>
+          </div>
+        </div>
+
+        <Link to="/create-job" style={{
+          display: 'inline-block',
+          padding: '12px 24px',
+          backgroundColor: '#007bff',
+          color: 'white',
+          textDecoration: 'none',
+          borderRadius: '4px',
+          fontWeight: 'bold',
+          cursor: 'pointer'
+        }}>
+          🚀 Create Your First Job
+        </Link>
+      </div>
+
+      <h2>📊 Recent Jobs</h2>
 
       {error && (
         <div style={{

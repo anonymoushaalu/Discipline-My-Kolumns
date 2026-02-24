@@ -17,10 +17,11 @@ export default function QuarantinePage() {
   const fetchQuarantine = async () => {
     try {
       const response = await apiService.getQuarantine();
-      setRows(response);
+      setRows(Array.isArray(response) ? response : []);
       setMessage('');
     } catch (error) {
       setMessage(`Error fetching quarantine: ${error.message}`);
+      setRows([]);
     } finally {
       setLoading(false);
     }
