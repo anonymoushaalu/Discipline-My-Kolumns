@@ -2,13 +2,14 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+from pydantic import BaseModel
 import csv
 import io
 from datetime import datetime
 from .services.rule_engine import apply_rule
 
 # Database connection
-DATABASE_URL = "postgresql://postgres:postgres@localhost/mdm_db"
+DATABASE_URL = "postgresql://postgres@127.0.0.1/mdm_db"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
@@ -18,6 +19,73 @@ app = FastAPI(title="Discipline-My-Kolumns MDM System")
 def read_root():
     """Health check endpoint"""
     return {"message": "Discipline-My-Kolumns MDM System is running"}
+
+@app.post("/setup-rules")
+def setup_rules():
+    """
+    Initialize sample rules - SETUP ENDPOINT
+    """
+    try:
+        with engine.connect() as conn:
+            # Delete existing rules first
+            conn.execute(text("DELETE FROM rules"))
+            
+            # Insert sample rules
+            conn.execute(text("""
+                INSERT INTO rules (column_name, rule_type, rule_value, is_active)
+                VALUES 
+                    ('name', 'regex', '^[A-Za-z ]+$', TRUE),
+                    ('age', 'range', '0-120', TRUE)
+            """))
+            conn.commit()
+        return {"message": "Rules initialized successfully"}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/update-rule")
+def update_rule(column_name: str, rule_type: str, rule_value: str):
+    """Update a rule in the database"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE rules
+                SET rule_type = :type, rule_value = :value
+                WHERE column_name = :column
+            """), {
+                "type": rule_type,
+                "value": rule_value,
+                "column": column_name
+            })
+            conn.commit()
+        return {"message": "Rule updated successfully", "column": column_name, "rule_value": rule_value}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+class RuleUpdate(BaseModel):
+    column_name: str
+    rule_type: str
+    rule_value: str
+
+@app.put("/rules/{rule_id}")
+def update_rule_put(rule_id: int, rule: RuleUpdate):
+    """Update a rule via PUT request with JSON body"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE rules
+                SET column_name = :column, rule_type = :type, rule_value = :value
+                WHERE id = :id
+            """), {
+                "id": rule_id,
+                "column": rule.column_name,
+                "type": rule.rule_type,
+                "value": rule.rule_value
+            })
+            conn.commit()
+        return {"message": "Rule updated successfully"}
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
@@ -216,6 +284,54 @@ def get_rules():
                 "is_active": r[4]
             }
             for r in rules
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/add-rule")
+def add_rule(column_name: str, rule_type: str, rule_value: str):
+    """Add a new validation rule"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO rules (column_name, rule_type, rule_value, is_active)
+                VALUES (:column, :type, :value, TRUE)
+            """), {
+                "column": column_name,
+                "type": rule_type,
+                "value": rule_value
+            })
+            conn.commit()
+        return {"message": "Rule added successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/jobs")
+def get_jobs():
+    """Get all jobs sorted by most recent first"""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT id, job_name, status, total_rows, clean_rows, quarantined_rows, created_at
+                FROM jobs
+                ORDER BY created_at DESC
+                LIMIT 100
+            """))
+            jobs = result.fetchall()
+        
+        return [
+            {
+                "id": j[0],
+                "job_name": j[1],
+                "status": j[2],
+                "total_rows": j[3],
+                "clean_rows": j[4],
+                "quarantined_rows": j[5],
+                "created_at": str(j[6])
+            }
+            for j in jobs
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
