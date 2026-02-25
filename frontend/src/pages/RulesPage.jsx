@@ -11,10 +11,27 @@ export default function RulesPage() {
   const [loadingRules, setLoadingRules] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
+  const [highlightedRuleId, setHighlightedRuleId] = useState(null);
 
   useEffect(() => {
     fetchRules();
   }, []);
+
+  // Auto-clear message after 3 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  // Clear highlight after 2 seconds
+  useEffect(() => {
+    if (highlightedRuleId) {
+      const timer = setTimeout(() => setHighlightedRuleId(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedRuleId]);
 
   const fetchRules = async () => {
     setLoadingRules(true);
@@ -75,6 +92,7 @@ export default function RulesPage() {
       await apiService.updateRule(id, editValues.column_name, editValues.rule_type, editValues.rule_value);
       setMessage('Rule updated successfully');
       setEditingId(null);
+      setHighlightedRuleId(id); // Highlight the updated rule
       fetchRules();
     } catch (error) {
       setMessage(`Error updating rule: ${error.message}`);
@@ -192,8 +210,9 @@ export default function RulesPage() {
               <tbody>
                 {rules.map((rule, idx) => (
                   <tr key={rule.id} style={{
-                    backgroundColor: editingId === rule.id ? '#e7f3ff' : (idx % 2 === 0 ? '#fff' : '#f9f9f9'),
-                    borderBottom: '1px solid #eee'
+                    backgroundColor: highlightedRuleId === rule.id ? '#d4edda' : (editingId === rule.id ? '#e7f3ff' : (idx % 2 === 0 ? '#fff' : '#f9f9f9')),
+                    borderBottom: '1px solid #eee',
+                    transition: 'background-color 0.3s ease'
                   }}>
                     {editingId === rule.id ? (
                       <>
