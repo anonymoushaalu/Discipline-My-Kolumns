@@ -32,52 +32,6 @@ export default function Dashboard() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px', fontFamily: 'Arial' }}>
-      {/* Latest Created Job Header */}
-      {jobs.length > 0 && (
-        <div style={{
-          padding: '20px',
-          backgroundColor: '#d4edda',
-          borderRadius: '8px',
-          marginBottom: '30px',
-          border: '2px solid #28a745'
-        }}>
-          <h2 style={{ marginTop: 0, color: '#28a745' }}>Latest Job</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '20px' }}>
-            <div>
-              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Job ID</p>
-              <p style={{ fontSize: '18px', fontWeight: 'bold', marginTop: 0 }}>{jobs[0].id}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Name</p>
-              <p style={{ fontSize: '18px', fontWeight: 'bold', marginTop: 0 }}>{jobs[0].job_name}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Total Rows</p>
-              <p style={{ fontSize: '18px', fontWeight: 'bold', marginTop: 0 }}>{jobs[0].total_rows}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Clean Rows</p>
-              <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#28a745', marginTop: 0 }}>{jobs[0].clean_rows}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Quarantined</p>
-              <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#dc3545', marginTop: 0 }}>{jobs[0].quarantined_rows}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Status</p>
-              <p style={{
-                fontSize: '18px',
-                fontWeight: 'bold',
-                marginTop: 0,
-                color: jobs[0].status === 'completed' ? '#28a745' : '#ffc107'
-              }}>
-                {jobs[0].status === 'completed' ? 'Completed' : 'Processing'}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div style={{
         padding: '30px',
         backgroundColor: '#e7f3ff',
@@ -212,6 +166,50 @@ export default function Dashboard() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {jobs.length > 0 && (
+        <div style={{
+          padding: '20px',
+          backgroundColor: '#d4edda',
+          borderRadius: '8px',
+          marginTop: '30px',
+          border: '2px solid #28a745'
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '20px' }}>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Job ID</p>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', marginTop: 0 }}>{jobs[0].id}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Name</p>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', marginTop: 0 }}>{jobs[0].job_name}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Total Rows</p>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', marginTop: 0 }}>{jobs[0].total_rows}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Clean Rows</p>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#28a745', marginTop: 0 }}>{jobs[0].clean_rows}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Quarantined</p>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#dc3545', marginTop: 0 }}>{jobs[0].quarantined_rows}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Status</p>
+              <p style={{
+                fontSize: '18px',
+                fontWeight: 'bold',
+                marginTop: 0,
+                color: jobs[0].status === 'completed' ? '#28a745' : '#ffc107'
+              }}>
+                {jobs[0].status === 'completed' ? 'Completed' : 'Processing'}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
