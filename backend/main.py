@@ -33,6 +33,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def auto_migrate_database():
+    """
+    Automatically create missing columns if they don't exist.
+    This runs on startup to ensure schema is ready.
+    """
+    try:
+        with engine.connect() as conn:
+            # Add columns_info to jobs table
+            try:
+                conn.execute(text("""
+                    ALTER TABLE jobs ADD COLUMN IF NOT EXISTS columns_info TEXT;
+                """))
+                conn.commit()
+                print("✓ Ensured jobs.columns_info column exists")
+            except Exception as e:
+                print(f"Note: jobs.columns_info check: {str(e)}")
+            
+            # Add row_data to clean_data table
+            try:
+                conn.execute(text("""
+                    ALTER TABLE clean_data ADD COLUMN IF NOT EXISTS row_data TEXT;
+                """))
+                conn.commit()
+                print("✓ Ensured clean_data.row_data column exists")
+            except Exception as e:
+                print(f"Note: clean_data.row_data check: {str(e)}")
+            
+            # Add row_data to quarantine_data table
+            try:
+                conn.execute(text("""
+                    ALTER TABLE quarantine_data ADD COLUMN IF NOT EXISTS row_data TEXT;
+                """))
+                conn.commit()
+                print("✓ Ensured quarantine_data.row_data column exists")
+            except Exception as e:
+                print(f"Note: quarantine_data.row_data check: {str(e)}")
+    except Exception as e:
+        print(f"Auto-migration warning: {str(e)}")
+
+# Run auto-migration on startup
+auto_migrate_database()
+
 @app.get("/")
 def read_root():
     """Health check endpoint"""
@@ -175,131 +217,129 @@ async def upload_csv(file: UploadFile = File(...)):
             if not rows_list:
                 raise HTTPException(status_code=400, detail="XLS file has no data rows")
         
-        conn = engine.connect()
         
-        # Fetch active rules from database
-        rules_result = conn.execute(text("""
-            SELECT column_name, rule_type, rule_value
-            FROM rules
-            WHERE is_active = TRUE
-        """))
-        
-        rules = rules_result.fetchall()
-        
-        # Build rule_map: {column_name: [{"type": ..., "value": ...}, ...]}
-        rule_map = {}
-        for r in rules:
-            rule_map.setdefault(r[0], []).append({
-                "type": r[1],
-                "value": r[2]
+        # Use proper transaction context manager for SQLAlchemy 2.0
+        with engine.begin() as conn:
+            # Fetch active rules from database
+            rules_result = conn.execute(text("""
+                SELECT column_name, rule_type, rule_value
+                FROM rules
+                WHERE is_active = TRUE
+            """))
+            
+            rules = rules_result.fetchall()
+            
+            # Build rule_map: {column_name: [{"type": ..., "value": ...}, ...]}
+            rule_map = {}
+            for r in rules:
+                rule_map.setdefault(r[0], []).append({
+                    "type": r[1],
+                    "value": r[2]
+                })
+            
+            # Create a job record with column information
+            job_result = conn.execute(text("""
+                INSERT INTO jobs (job_name, status, created_at, columns_info)
+                VALUES (:job_name, 'processing', NOW(), :columns_info)
+                RETURNING id
+            """), {
+                "job_name": file.filename,
+                "columns_info": json.dumps(columns)
             })
-        
-        # Create a job record with column information
-        job_result = conn.execute(text("""
-            INSERT INTO jobs (job_name, status, created_at, columns_info)
-            VALUES (:job_name, 'processing', NOW(), :columns_info)
-            RETURNING id
-        """), {
-            "job_name": file.filename,
-            "columns_info": json.dumps(columns)
-        })
-        
-        job_id = job_result.scalar()
-        conn.commit()
-        
-        # Process rows
-        clean_count = 0
-        quarantine_count = 0
-        total_count = 0
-        row_number = 0
-        
-        for row in rows_list:
-            row_number += 1
-            total_count += 1
-            row_valid = True
-            validation_errors = []
             
-            # Apply rules from database
-            for column, rules_list in rule_map.items():
-                if column not in row:
-                    continue
-                    
-                for rule in rules_list:
-                    is_valid = apply_rule(
-                        row[column],
-                        rule["type"],
-                        rule["value"]
-                    )
-                    
-                    if not is_valid:
-                        row_valid = False
-                        validation_errors.append(f"Column '{column}' failed {rule['type']} rule")
-                        
-                        # Log the validation failure
-                        conn.execute(text("""
-                            INSERT INTO logs 
-                            (job_id, row_number, column_name, original_value, rule_applied, status_color)
-                            VALUES (:job_id, :row_number, :column_name, :original_value, :rule_applied, 'red')
-                        """), {
-                            "job_id": job_id,
-                            "row_number": row_number,
-                            "column_name": column,
-                            "original_value": str(row[column]),
-                            "rule_applied": f"{rule['type']}:{rule['value']}"
-                        })
+            job_id = job_result.scalar()
             
-            # Store all columns as JSON
-            row_data = json.dumps(dict(row))
+            # Process rows
+            clean_count = 0
+            quarantine_count = 0
+            total_count = 0
+            row_number = 0
             
-            # Insert into appropriate table
-            if row_valid:
-                conn.execute(text("""
-                    INSERT INTO clean_data (job_id, name, age, row_data, created_at)
-                    VALUES (:job_id, :name, :age, :row_data, NOW())
-                """), {
-                    "job_id": job_id,
-                    "name": row.get("name", ""),
-                    "age": int(row.get("age", 0)) if str(row.get("age", "")).isdigit() else 0,
-                    "row_data": row_data
-                })
-                clean_count += 1
+            for row in rows_list:
+                row_number += 1
+                total_count += 1
+                row_valid = True
+                validation_errors = []
                 
-                # Log successful validation
-                conn.execute(text("""
-                    INSERT INTO logs 
-                    (job_id, row_number, status_color)
-                    VALUES (:job_id, :row_number, 'green')
-                """), {
-                    "job_id": job_id,
-                    "row_number": row_number
-                })
-            else:
-                conn.execute(text("""
-                    INSERT INTO quarantine_data (job_id, name, age, error_reason, row_data, created_at)
-                    VALUES (:job_id, :name, :age, :error_reason, :row_data, NOW())
-                """), {
-                    "job_id": job_id,
-                    "name": row.get("name", ""),
-                    "age": int(row.get("age", 0)) if str(row.get("age", "")).isdigit() else 0,
-                    "error_reason": "; ".join(validation_errors),
-                    "row_data": row_data
-                })
-                quarantine_count += 1
-        
-        # Update job status
-        conn.execute(text("""
-            UPDATE jobs
-            SET status = 'completed', total_rows = :total, clean_rows = :clean, quarantined_rows = :quarantine
-            WHERE id = :job_id
-        """), {
-            "job_id": job_id,
-            "total": total_count,
-            "clean": clean_count,
-            "quarantine": quarantine_count
-        })
-        
-        conn.commit()
-        conn.close()
+                # Apply rules from database
+                for column, rules_list in rule_map.items():
+                    if column not in row:
+                        continue
+                        
+                    for rule in rules_list:
+                        is_valid = apply_rule(
+                            row[column],
+                            rule["type"],
+                            rule["value"]
+                        )
+                        
+                        if not is_valid:
+                            row_valid = False
+                            validation_errors.append(f"Column '{column}' failed {rule['type']} rule")
+                            
+                            # Log the validation failure
+                            conn.execute(text("""
+                                INSERT INTO logs 
+                                (job_id, row_number, column_name, original_value, rule_applied, status_color)
+                                VALUES (:job_id, :row_number, :column_name, :original_value, :rule_applied, 'red')
+                            """), {
+                                "job_id": job_id,
+                                "row_number": row_number,
+                                "column_name": column,
+                                "original_value": str(row[column]),
+                                "rule_applied": f"{rule['type']}:{rule['value']}"
+                            })
+                
+                # Store all columns as JSON
+                row_data = json.dumps(dict(row))
+                
+                # Insert into appropriate table
+                if row_valid:
+                    conn.execute(text("""
+                        INSERT INTO clean_data (job_id, name, age, row_data, created_at)
+                        VALUES (:job_id, :name, :age, :row_data, NOW())
+                    """), {
+                        "job_id": job_id,
+                        "name": row.get("name", ""),
+                        "age": int(row.get("age", 0)) if str(row.get("age", "")).isdigit() else 0,
+                        "row_data": row_data
+                    })
+                    clean_count += 1
+                    
+                    # Log successful validation
+                    conn.execute(text("""
+                        INSERT INTO logs 
+                        (job_id, row_number, status_color)
+                        VALUES (:job_id, :row_number, 'green')
+                    """), {
+                        "job_id": job_id,
+                        "row_number": row_number
+                    })
+                else:
+                    conn.execute(text("""
+                        INSERT INTO quarantine_data (job_id, name, age, error_reason, row_data, created_at)
+                        VALUES (:job_id, :name, :age, :error_reason, :row_data, NOW())
+                    """), {
+                        "job_id": job_id,
+                        "name": row.get("name", ""),
+                        "age": int(row.get("age", 0)) if str(row.get("age", "")).isdigit() else 0,
+                        "error_reason": "; ".join(validation_errors),
+                        "row_data": row_data
+                    })
+                    quarantine_count += 1
+            
+            # Update job status
+            conn.execute(text("""
+                UPDATE jobs
+                SET status = 'completed', total_rows = :total, clean_rows = :clean, quarantined_rows = :quarantine
+                WHERE id = :job_id
+            """), {
+                "job_id": job_id,
+                "total": total_count,
+                "clean": clean_count,
+                "quarantine": quarantine_count
+            })
+            # Transaction commits automatically when exiting the with block
         
         return {
             "message": "File processed successfully",
