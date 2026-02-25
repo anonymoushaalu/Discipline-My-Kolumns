@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from services.rule_engine import apply_rule
 
 # Database connection
-DATABASE_URL = "postgresql://postgres@127.0.0.1/mdm_db"
+DATABASE_URL = "postgresql://postgres:AditiRao@127.0.0.1/mdm_db"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 

@@ -33,5 +33,8 @@ export const apiService = {
   revalidateRow: (rowId) => axios.post(`${API_BASE}/revalidate/${rowId}`),
   
   // Logs
-  getLogs: (jobId) => axios.get(`${API_BASE}/logs/${jobId}`)
+  getLogs: (jobId) => axios.get(`${API_BASE}/logs/${jobId}`),
+  
+  // Clean Data
+  getCleanData: (limit = 5) => axios.get(`${API_BASE}/clean-data?limit=${limit}`)
 };

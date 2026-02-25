@@ -13,12 +13,8 @@ export default function DataPage() {
   const fetchCleanData = async () => {
     setLoading(true);
     try {
-      // Fetch from the backend - assuming there's an endpoint to get clean data
-      // For now, we'll fetch from /jobs and show a sample
-      const response = await fetch('http://localhost:8000/clean-data?limit=5');
-      if (!response.ok) throw new Error('Failed to fetch data');
-      const data = await response.json();
-      setCleanData(Array.isArray(data) ? data : []);
+      const response = await apiService.getCleanData(5);
+      setCleanData(Array.isArray(response.data) ? response.data : []);
       setError('');
     } catch (err) {
       setError(`Error fetching data: ${err.message}`);
@@ -29,12 +25,12 @@ export default function DataPage() {
   };
 
   if (loading) {
-    return <div style={{ textAlign: 'center', padding: '40px' }}>⏳ Loading data...</div>;
+    return <div style={{ textAlign: 'center', padding: '40px' }}>Loading data...</div>;
   }
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px', fontFamily: 'Arial' }}>
-      <h1>💾 Stored Clean Data</h1>
+      <h1>Stored Clean Data</h1>
 
       <div style={{
         padding: '15px',
@@ -43,7 +39,7 @@ export default function DataPage() {
         marginBottom: '20px',
         border: '1px solid #b3d9ff'
       }}>
-        <strong>📊 Info:</strong> This page displays the first 5 rows of clean, validated data stored in the database.
+        <strong>Info:</strong> This page displays the first 5 rows of clean, validated data stored in the database.
       </div>
 
       {error && (
@@ -55,13 +51,13 @@ export default function DataPage() {
           marginBottom: '20px',
           border: '1px solid #f5c6cb'
         }}>
-          ❌ {error}
+          Error: {error}
         </div>
       )}
 
       {cleanData.length === 0 ? (
         <p style={{ textAlign: 'center', color: '#666', padding: '40px 0' }}>
-          📭 No clean data available yet. Upload a CSV file to see data here!
+          No clean data available yet. Upload a CSV file to see data here!
         </p>
       ) : (
         <div style={{
@@ -132,7 +128,7 @@ export default function DataPage() {
           fontWeight: 'bold'
         }}
       >
-        🔄 Refresh Data
+        Refresh Data
       </button>
     </div>
   );
