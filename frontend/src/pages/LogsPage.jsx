@@ -40,17 +40,17 @@ export default function LogsPage() {
 
   const getStatusIcon = (color) => {
     const map = {
-      'green': '✅',
-      'red': '❌',
-      'yellow': '⚠️',
-      'blue': 'ℹ️'
+      'green': 'Pass',
+      'red': 'Fail',
+      'yellow': 'Warning',
+      'blue': 'Info'
     };
     return map[color.toLowerCase()] || '•';
   };
 
   return (
     <div style={{ maxWidth: '1200px', margin: '20px auto', padding: '20px', fontFamily: 'Arial' }}>
-      <h2>📋 Audit Logs & Validation Details (Job #{jobId})</h2>
+      <h2>Audit Logs & Validation Details (Job #{jobId})</h2>
 
       {message && (
         <div
@@ -141,15 +141,15 @@ export default function LogsPage() {
             borderRadius: '4px'
           }}>
             <div>
-              <span style={{ fontSize: '18px', marginRight: '8px' }}>✅</span>
+              <span style={{ fontSize: '18px', marginRight: '8px' }}>P</span>
               <strong>Valid:</strong> {logs.filter(l => l.status_color.toLowerCase() === 'green').length}
             </div>
             <div>
-              <span style={{ fontSize: '18px', marginRight: '8px' }}>❌</span>
+              <span style={{ fontSize: '18px', marginRight: '8px' }}>F</span>
               <strong>Invalid:</strong> {logs.filter(l => l.status_color.toLowerCase() === 'red').length}
             </div>
             <div>
-              <span style={{ fontSize: '18px', marginRight: '8px' }}>⚠️</span>
+              <span style={{ fontSize: '18px', marginRight: '8px' }}>W</span>
               <strong>Warnings:</strong> {logs.filter(l => l.status_color.toLowerCase() === 'yellow').length}
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function LogsPage() {
           fontSize: '14px'
         }}
       >
-        🔄 Refresh Logs
+        Refresh Logs
       </button>
     </div>
   );

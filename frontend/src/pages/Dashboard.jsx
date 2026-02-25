@@ -156,8 +156,8 @@ export default function Dashboard() {
                 <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Job ID</th>
                 <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Name</th>
                 <th style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>Total</th>
-                <th style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>✅ Clean</th>
-                <th style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>⚠️ Quarantine</th>
+                <th style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>Clean</th>
+                <th style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>Quarantine</th>
                 <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Status</th>
                 <th style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>Logs</th>
               </tr>

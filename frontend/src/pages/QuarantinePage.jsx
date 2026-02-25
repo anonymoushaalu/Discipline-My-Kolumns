@@ -35,11 +35,11 @@ export default function QuarantinePage() {
   const handleSave = async (id) => {
     try {
       await apiService.updateQuarantine(id, editValues.name, editValues.age);
-      setMessage('✅ Row updated successfully');
+      setMessage('Row updated successfully');
       setEditingId(null);
       fetchQuarantine();
     } catch (error) {
-      setMessage(`❌ Error updating row: ${error.message}`);
+      setMessage(`Error updating row: ${error.message}`);
     }
   };
 
@@ -47,13 +47,13 @@ export default function QuarantinePage() {
     try {
       const response = await apiService.revalidate(id);
       if (response.status === 'success') {
-        setMessage(`✅ ${response.message}`);
+        setMessage(`${response.message}`);
       } else {
-        setMessage(`⚠️ Row still invalid: ${response.errors?.join(', ')}`);
+        setMessage(`Row still invalid: ${response.errors?.join(', ')}`);
       }
       fetchQuarantine();
     } catch (error) {
-      setMessage(`❌ Error revalidating: ${error.message}`);
+      setMessage(`Error revalidating: ${error.message}`);
     }
   };
 
@@ -61,7 +61,7 @@ export default function QuarantinePage() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '20px auto', padding: '20px', fontFamily: 'Arial' }}>
-      <h2>⚠️ Quarantine Review & Correction</h2>
+      <h2>Quarantine Review & Correction</h2>
 
       {message && (
         <div
@@ -195,7 +195,7 @@ export default function QuarantinePage() {
                             fontSize: '12px'
                           }}
                         >
-                          🔄 Revalidate
+                          Revalidate
                         </button>
                       </>
                     )}
@@ -220,7 +220,7 @@ export default function QuarantinePage() {
           fontSize: '14px'
         }}
       >
-        🔄 Refresh
+        Refresh
       </button>
     </div>
   );

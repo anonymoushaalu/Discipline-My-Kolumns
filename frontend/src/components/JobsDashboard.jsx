@@ -29,7 +29,7 @@ export default function JobsDashboard() {
 
   return (
     <div style={{ maxWidth: '1000px', margin: '20px auto', padding: '20px', fontFamily: 'Arial' }}>
-      <h2>📊 Jobs Dashboard</h2>
+      <h2>Jobs Dashboard</h2>
 
       {error && (
         <div style={{ color: 'red', padding: '10px', backgroundColor: '#ffe6e6', borderRadius: '4px', marginBottom: '20px' }}>
@@ -50,8 +50,8 @@ export default function JobsDashboard() {
               <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #0056b3' }}>Job ID</th>
               <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #0056b3' }}>Job Name</th>
               <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #0056b3' }}>Total Rows</th>
-              <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #0056b3' }}>✅ Clean</th>
-              <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #0056b3' }}>⚠️ Quarantine</th>
+              <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #0056b3' }}>Clean</th>
+              <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #0056b3' }}>Quarantine</th>
               <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #0056b3' }}>Status</th>
             </tr>
           </thead>
@@ -75,7 +75,7 @@ export default function JobsDashboard() {
                     fontWeight: 'bold',
                     color: job.status === 'completed' ? '#28a745' : '#ffc107'
                   }}>
-                    {job.status === 'completed' ? '✅ Completed' : '⏳ ' + job.status}
+                    {job.status === 'completed' ? 'Completed' : job.status}
                   </td>
                 </tr>
               );
@@ -97,7 +97,7 @@ export default function JobsDashboard() {
           fontSize: '14px'
         }}
       >
-        🔄 Refresh
+        Refresh
       </button>
     </div>
   );

@@ -33,15 +33,29 @@ export default function RulesPage() {
     setLoading(true);
     setMessage('');
 
+    // Check for conflicts with existing rules
+    const conflictingRule = rules.find(
+      rule => rule.column_name === columnName && rule.rule_type === ruleType
+    );
+
+    if (conflictingRule) {
+      const conflictMsg = `Rule for column "${columnName}" already exists with ${ruleType} rule: ${conflictingRule.rule_value}. Do you want to replace it?`;
+      if (!window.confirm(conflictMsg)) {
+        setMessage('Rule addition cancelled');
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       await apiService.addRule(columnName, ruleType, ruleValue);
-      setMessage('✅ Rule added successfully');
+      setMessage('Rule added successfully');
       setColumnName('');
       setRuleType('regex');
       setRuleValue('');
       fetchRules();
     } catch (error) {
-      setMessage(`❌ Error: ${error.response?.data?.detail || error.message}`);
+      setMessage(`Error: ${error.response?.data?.detail || error.message}`);
     } finally {
       setLoading(false);
     }
@@ -59,22 +73,22 @@ export default function RulesPage() {
   const handleEditSave = async (id) => {
     try {
       await apiService.updateRule(id, editValues.column_name, editValues.rule_type, editValues.rule_value);
-      setMessage('✅ Rule updated successfully');
+      setMessage('Rule updated successfully');
       setEditingId(null);
       fetchRules();
     } catch (error) {
-      setMessage(`❌ Error updating rule: ${error.message}`);
+      setMessage(`Error updating rule: ${error.message}`);
     }
   };
 
   return (
     <div style={{ maxWidth: '1200px', margin: '20px auto', padding: '20px', fontFamily: 'Arial' }}>
-      <h1>⚙️ Validation Rules Management</h1>
+      <h1>Validation Rules Management</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
         {/* Add New Rule Section */}
         <div style={{ padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #ddd' }}>
-          <h2 style={{ marginTop: 0 }}>➕ Add New Rule</h2>
+          <h2 style={{ marginTop: 0 }}>Add New Rule</h2>
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Column Name:</label>
@@ -127,7 +141,7 @@ export default function RulesPage() {
                 fontWeight: 'bold'
               }}
             >
-              {loading ? '⏳ Adding...' : '➕ Add Rule'}
+              {loading ? 'Adding...' : 'Add Rule'}
             </button>
           </form>
 
@@ -136,10 +150,10 @@ export default function RulesPage() {
               style={{
                 marginTop: '20px',
                 padding: '10px',
-                backgroundColor: message.includes('✅') ? '#d4edda' : '#f8d7da',
-                color: message.includes('✅') ? '#155724' : '#721c24',
+                backgroundColor: message.includes('successfully') ? '#d4edda' : '#f8d7da',
+                color: message.includes('successfully') ? '#155724' : '#721c24',
                 borderRadius: '4px',
-                border: `1px solid ${message.includes('✅') ? '#c3e6cb' : '#f5c6cb'}`
+                border: `1px solid ${message.includes('successfully') ? '#c3e6cb' : '#f5c6cb'}`
               }}
             >
               {message}
@@ -149,13 +163,13 @@ export default function RulesPage() {
 
         {/* Existing Rules Section */}
         <div style={{ padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #ddd' }}>
-          <h2 style={{ marginTop: 0 }}>📋 Existing Rules ({rules.length})</h2>
+          <h2 style={{ marginTop: 0 }}>Existing Rules ({rules.length})</h2>
           
           {loadingRules ? (
             <p style={{ textAlign: 'center', color: '#666' }}>Loading rules...</p>
           ) : rules.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#999', padding: '40px 0' }}>
-              📭 No rules set yet. Add your first rule on the left!
+              No rules set yet. Add your first rule on the left!
             </p>
           ) : (
             <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
@@ -206,7 +220,7 @@ export default function RulesPage() {
                             fontSize: '11px'
                           }}
                         >
-                          ✓ Save
+                          Save
                         </button>
                         <button
                           onClick={() => setEditingId(null)}
@@ -221,15 +235,15 @@ export default function RulesPage() {
                             fontSize: '11px'
                           }}
                         >
-                          ✗ Cancel
+                          Cancel
                         </button>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div><strong style={{ color: '#007bff' }}>📊 {rule.column_name}</strong></div>
+                      <div><strong style={{ color: '#007bff' }}>{rule.column_name}</strong></div>
                       <div style={{ fontSize: '11px', color: '#666', margin: '3px 0' }}>
-                        {rule.rule_type === 'regex' ? '🔤 Pattern' : '📈 Range'}: <code style={{ backgroundColor: '#f5f5f5', padding: '1px 4px' }}>{rule.rule_value}</code>
+                        {rule.rule_type === 'regex' ? 'Pattern' : 'Range'}: <code style={{ backgroundColor: '#f5f5f5', padding: '1px 4px' }}>{rule.rule_value}</code>
                       </div>
                       <button
                         onClick={() => handleEditStart(rule)}
@@ -246,7 +260,7 @@ export default function RulesPage() {
                           fontWeight: 'bold'
                         }}
                       >
-                        ✎ Edit
+                        Edit
                       </button>
                     </>
                   )}

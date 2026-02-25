@@ -52,50 +52,50 @@ export default function CreateJob() {
 
     setLoading(true);
     setError('');
-    setProgress('📤 Starting upload...');
+    setProgress('Starting upload...');
 
     try {
       let response;
       
       if (sourceType === 'csv' || sourceType === 'excel') {
-        setProgress('📁 File validation...');
+        setProgress('File validation...');
         await new Promise(r => setTimeout(r, 500));
         
-        setProgress('📂 Sending file to server...');
+        setProgress('Sending file to server...');
         await new Promise(r => setTimeout(r, 500));
         
-        setProgress('🔍 Reading CSV data...');
+        setProgress('Reading CSV data...');
         await new Promise(r => setTimeout(r, 800));
         
-        setProgress('⚙️ Fetching validation rules from database...');
+        setProgress('Fetching validation rules from database...');
         await new Promise(r => setTimeout(r, 600));
         
-        setProgress('✅ Validating each row...');
+        setProgress('Validating each row...');
         await new Promise(r => setTimeout(r, 1200));
         
-        setProgress('💾 Storing clean data in database...');
+        setProgress('Storing clean data in database...');
         await new Promise(r => setTimeout(r, 800));
         
-        setProgress('⚠️ Storing quarantined data...');
+        setProgress('Storing quarantined data...');
         await new Promise(r => setTimeout(r, 600));
         
-        setProgress('📝 Creating audit logs...');
+        setProgress('Creating audit logs...');
         await new Promise(r => setTimeout(r, 800));
         
-        setProgress('✨ Job completed! Preparing results...');
+        setProgress('Job completed! Preparing results...');
         
         response = await apiService.uploadCSV(file);
       } else if (sourceType === 'database') {
-        setProgress('🔌 Connecting to database...');
+        setProgress('Connecting to database...');
         await new Promise(r => setTimeout(r, 800));
         
-        setProgress('📊 Reading data from database...');
+        setProgress('Reading data from database...');
         await new Promise(r => setTimeout(r, 1200));
         
-        setProgress('✅ Validating rows...');
+        setProgress('Validating rows...');
         await new Promise(r => setTimeout(r, 1500));
         
-        setProgress('💾 Processing results...');
+        setProgress('Processing results...');
         await new Promise(r => setTimeout(r, 800));
         
         response = await apiService.uploadCSV(file); // Placeholder
@@ -115,7 +115,7 @@ export default function CreateJob() {
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '40px 20px', fontFamily: 'Arial' }}>
-      <h1>📤 Create New Job</h1>
+      <h1>Create New Job</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '30px' }}>
         {/* Source Selection Sidebar */}
@@ -128,12 +128,12 @@ export default function CreateJob() {
           position: 'sticky',
           top: '20px'
         }}>
-          <h3 style={{ marginTop: 0 }}>📥 Select Source</h3>
+          <h3 style={{ marginTop: 0 }}>Select Source</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {[
-              { value: 'csv', label: '📄 CSV Upload', icon: '📄' },
-              { value: 'excel', label: '📊 Excel Sheet', icon: '📊' },
-              { value: 'database', label: '🗄️ Database', icon: '🗄️' }
+              { value: 'csv', label: 'CSV Upload' },
+              { value: 'excel', label: 'Excel Sheet' },
+              { value: 'database', label: 'Database' }
             ].map(option => (
               <button
                 key={option.value}
@@ -166,7 +166,7 @@ export default function CreateJob() {
               border: '2px dashed #007bff'
             }}>
               <h2 style={{ marginTop: 0 }}>
-                {sourceType === 'csv' ? '📄 CSV Upload' : '📊 Excel Sheet Upload'}
+                {sourceType === 'csv' ? 'CSV Upload' : 'Excel Sheet Upload'}
               </h2>
 
               <div style={{ marginBottom: '20px' }}>
@@ -216,7 +216,7 @@ export default function CreateJob() {
                   fontWeight: 'bold'
                 }}
               >
-                {loading ? '⏳ Processing...' : '🚀 Upload & Process'}
+                {loading ? 'Processing...' : 'Upload & Process'}
               </button>
             </form>
           )}
@@ -229,7 +229,7 @@ export default function CreateJob() {
               borderRadius: '8px',
               border: '2px dashed #007bff'
             }}>
-              <h2 style={{ marginTop: 0 }}>🗄️ Database Connection</h2>
+              <h2 style={{ marginTop: 0 }}>Database Connection</h2>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
                 {[
@@ -276,7 +276,7 @@ export default function CreateJob() {
                   fontWeight: 'bold'
                 }}
               >
-                {loading ? '⏳ Connecting...' : '🚀 Connect & Import'}
+                {loading ? 'Connecting...' : 'Connect & Import'}
               </button>
             </form>
           )}
@@ -291,7 +291,7 @@ export default function CreateJob() {
               border: '1px solid #b3d9ff',
               animation: 'pulse 1.5s infinite'
             }}>
-              <strong>📊 Processing:</strong> {progress}
+              <strong>Processing:</strong> {progress}
               <div style={{
                 marginTop: '10px',
                 height: '6px',
@@ -319,7 +319,7 @@ export default function CreateJob() {
               borderRadius: '4px',
               border: '1px solid #f5c6cb'
             }}>
-              ❌ {error}
+              Error: {error}
             </div>
           )}
 
@@ -333,12 +333,12 @@ export default function CreateJob() {
               borderRadius: '4px',
               border: '1px solid #c3e6cb'
             }}>
-              <h2 style={{ marginTop: 0 }}>✅ Job Created Successfully!</h2>
+              <h2 style={{ marginTop: 0 }}>Job Created Successfully!</h2>
               <p><strong>Job ID:</strong> {result.job_id}</p>
               <p><strong>File Name:</strong> {result.job_name}</p>
               <p><strong>Total Rows:</strong> {result.total_rows}</p>
-              <p style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Clean Rows: {result.clean_rows}</p>
-              <p style={{ color: '#dc3545', fontWeight: 'bold' }}>⚠️ Quarantined Rows: {result.quarantined_rows}</p>
+              <p style={{ color: '#28a745', fontWeight: 'bold' }}>Clean Rows: {result.clean_rows}</p>
+              <p style={{ color: '#dc3545', fontWeight: 'bold' }}>Quarantined Rows: {result.quarantined_rows}</p>
 
               <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
                 <button
@@ -353,7 +353,7 @@ export default function CreateJob() {
                     fontWeight: 'bold'
                   }}
                 >
-                  📊 Go to Dashboard
+                  Dashboard
                 </button>
                 <button
                   onClick={() => navigate(`/logs/${result.job_id}`)}
@@ -367,12 +367,62 @@ export default function CreateJob() {
                     fontWeight: 'bold'
                   }}
                 >
-                  📋 View Logs & Details
+                  View Logs & Details
                 </button>
               </div>
             </div>
           )}
         </div>
+      </div>
+
+      {/* Previous Jobs Section */}
+      <div style={{ marginTop: '40px' }}>
+        <h2>Previous Data Created</h2>
+        {loadingJobs ? (
+          <p style={{ textAlign: 'center', color: '#666' }}>Loading previous jobs...</p>
+        ) : previousJobs.length === 0 ? (
+          <p style={{ textAlign: 'center', color: '#999', padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+            No previous jobs. Create one above!
+          </p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              backgroundColor: 'white',
+              border: '1px solid #ddd'
+            }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Job ID</th>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>File Name</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Total Rows</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Clean</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Quarantined</th>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previousJobs.slice(0, 10).map((job, index) => (
+                  <tr key={job.id} style={{ borderBottom: '1px solid #eee', backgroundColor: index % 2 === 0 ? '#fff' : '#f9f9f9' }}>
+                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{job.id}</td>
+                    <td style={{ padding: '12px' }}>{job.job_name}</td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>{job.total_rows}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', color: '#28a745', fontWeight: 'bold' }}>{job.clean_rows}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', color: '#dc3545', fontWeight: 'bold' }}>{job.quarantined_rows}</td>
+                    <td style={{ padding: '12px', color: job.status === 'completed' ? '#28a745' : '#ffc107' }}>
+                      {job.status === 'completed' ? 'Completed' : 'Processing'}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '12px' }}>
+                      {job.created_at ? new Date(job.created_at).toLocaleDateString() : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <style>{`
