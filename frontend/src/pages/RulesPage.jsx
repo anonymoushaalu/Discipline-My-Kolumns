@@ -5,6 +5,7 @@ export default function RulesPage() {
   const [columnName, setColumnName] = useState('');
   const [ruleType, setRuleType] = useState('regex');
   const [ruleValue, setRuleValue] = useState('');
+  const [description, setDescription] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [rules, setRules] = useState([]);
@@ -12,6 +13,7 @@ export default function RulesPage() {
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
   const [highlightedRuleId, setHighlightedRuleId] = useState(null);
+  const [editedRuleIds, setEditedRuleIds] = useState(new Set());
 
   useEffect(() => {
     fetchRules();
@@ -37,9 +39,12 @@ export default function RulesPage() {
     setLoadingRules(true);
     try {
       const response = await apiService.getRules();
-      setRules(Array.isArray(response) ? response : []);
+      // Handle both direct array and data property
+      const rulesData = response.data ? (Array.isArray(response.data) ? response.data : [response.data]) : (Array.isArray(response) ? response : []);
+      setRules(rulesData);
     } catch (error) {
       console.error('Error fetching rules:', error);
+      setRules([]);
     } finally {
       setLoadingRules(false);
     }
@@ -93,10 +98,54 @@ export default function RulesPage() {
       setMessage('Rule updated successfully');
       setEditingId(null);
       setHighlightedRuleId(id); // Highlight the updated rule
+      setEditedRuleIds(prev => new Set([...prev, id])); // Track as edited
       fetchRules();
     } catch (error) {
       setMessage(`Error updating rule: ${error.message}`);
     }
+  };
+
+  const convertDescriptionToRule = () => {
+    if (!description.trim()) {
+      setMessage('Please enter a description');
+      return;
+    }
+    
+    // Simple NLP for common patterns
+    const desc = description.toLowerCase();
+    let detectedType = 'regex';
+    let detectedValue = '';
+
+    if (desc.includes('email') || desc.includes('@')) {
+      detectedType = 'email';
+      detectedValue = '';
+    } else if (desc.includes('number') || desc.includes('numeric') || desc.includes('digit')) {
+      detectedType = 'regex';
+      detectedValue = '^\\d+$';
+    } else if (desc.includes('required') || desc.includes('not empty')) {
+      detectedType = 'required';
+      detectedValue = '';
+    } else if ((desc.includes('length') || desc.includes('characters')) && (desc.includes('max') || desc.includes('maximum'))) {
+      const match = description.match(/(\d+)/);
+      if (match) {
+        detectedType = 'length';
+        detectedValue = `0-${match[1]}`;
+      }
+    } else if (desc.includes('range') || desc.includes('between')) {
+      const matches = description.match(/(\d+)\s*(?:to|-|and)\s*(\d+)/);
+      if (matches) {
+        detectedType = 'range';
+        detectedValue = `${matches[1]}-${matches[2]}`;
+      }
+    } else {
+      detectedType = 'regex';
+      detectedValue = '^.+$';
+    }
+
+    setRuleType(detectedType);
+    setRuleValue(detectedValue);
+    setMessage(`Converted description to ${detectedType} rule`);
+    setDescription('');
   };
 
   return (
@@ -106,6 +155,41 @@ export default function RulesPage() {
       {/* Add New Rule Section */}
       <div style={{ padding: '20px', backgroundColor: '#f0f8ff', borderRadius: '8px', border: '2px solid #007bff', marginBottom: '30px' }}>
         <h2 style={{ marginTop: 0, color: '#007bff' }}>Add New Rule</h2>
+        
+        {/* Describe Option */}
+        <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#e7f3ff', borderRadius: '4px', border: '1px solid #b3d9ff' }}>
+          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px' }}>Quick Describe (Optional):</label>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g., 'email address', 'number between 0 and 100', 'required field', 'max 50 characters'"
+              style={{ flex: 1, padding: '8px', boxSizing: 'border-box', borderRadius: '4px', border: '1px solid #999' }}
+              onKeyPress={(e) => e.key === 'Enter' && convertDescriptionToRule()}
+            />
+            <button
+              type="button"
+              onClick={convertDescriptionToRule}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#0066cc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Convert to Rule
+            </button>
+          </div>
+          <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
+            Describes what the rule should validate. AI will convert to regex/range/email/etc.
+          </small>
+        </div>
+
         <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '15px', alignItems: 'flex-end' }}>
           <div>
             <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Column Name:</label>
@@ -204,6 +288,7 @@ export default function RulesPage() {
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Column Name</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Rule Type</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Rule Value</th>
+                  <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #2c3e50', width: '120px' }}>Status</th>
                   <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #2c3e50', width: '150px' }}>Actions</th>
                 </tr>
               </thead>
@@ -244,6 +329,9 @@ export default function RulesPage() {
                             onChange={(e) => setEditValues({ ...editValues, rule_value: e.target.value })}
                             style={{ width: '100%', padding: '6px', fontSize: '13px', boxSizing: 'border-box', borderRadius: '3px', border: '1px solid #ddd', fontFamily: 'monospace' }}
                           />
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center', fontSize: '11px', color: '#666' }}>
+                          Editing...
                         </td>
                         <td style={{ padding: '12px', textAlign: 'center' }}>
                           <button
@@ -289,6 +377,19 @@ export default function RulesPage() {
                         </td>
                         <td style={{ padding: '12px', fontFamily: 'monospace', color: '#333', fontSize: '12px' }}>
                           {rule.rule_value}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '4px 10px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            backgroundColor: editedRuleIds.has(rule.id) ? '#ffc107' : '#28a745',
+                            color: 'white'
+                          }}>
+                            {editedRuleIds.has(rule.id) ? 'CHANGED' : 'ORIGINAL'}
+                          </span>
                         </td>
                         <td style={{ padding: '12px', textAlign: 'center' }}>
                           <button

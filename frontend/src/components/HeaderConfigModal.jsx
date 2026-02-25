@@ -81,9 +81,10 @@ export default function HeaderConfigModal({ previewData, onConfirm, onCancel, fi
               <tr style={{ backgroundColor: '#34495e', color: 'white' }}>
                 <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Column Name</th>
                 <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Detected Type</th>
-                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>System Rule</th>
-                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Custom Rule Type</th>
-                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Custom Rule Value</th>
+                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Preset Rule</th>
+                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Status</th>
+                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Edit Rule Type</th>
+                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #2c3e50' }}>Edit Rule Value</th>
                 <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #2c3e50' }}>Actions</th>
               </tr>
             </thead>
@@ -92,6 +93,7 @@ export default function HeaderConfigModal({ previewData, onConfirm, onCancel, fi
                 const customRule = columnRules[col.name];
                 const hasCustom = customRule && customRule.type;
                 const displayName = columnNames[col.name] || col.name;
+                const hasPresetRule = col.system_rule && col.system_rule.type;
                 
                 return (
                   <tr key={idx} style={{
@@ -114,15 +116,29 @@ export default function HeaderConfigModal({ previewData, onConfirm, onCancel, fi
                         placeholder={col.name}
                       />
                     </td>
-                    <td style={{ padding: '12px', color: '#0066cc' }}>{col.detected_type}</td>
+                    <td style={{ padding: '12px', color: '#0066cc', fontSize: '13px' }}>{col.detected_type}</td>
                     <td style={{ padding: '12px', fontSize: '12px', fontFamily: 'monospace' }}>
-                      {col.system_rule ? (
-                        <span>
-                          <strong>{col.system_rule.type}:</strong> {col.system_rule.value}
-                        </span>
+                      {hasPresetRule ? (
+                        <div style={{ backgroundColor: '#e7f3ff', padding: '6px', borderRadius: '3px', border: '1px solid #b3d9ff' }}>
+                          <div><strong>{col.system_rule.type}</strong></div>
+                          <div style={{ fontSize: '11px', color: '#666' }}>{col.system_rule.value}</div>
+                        </div>
                       ) : (
-                        <span style={{ color: '#999' }}>None</span>
+                        <span style={{ color: '#999', fontSize: '11px' }}>No preset rule</span>
                       )}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        backgroundColor: hasCustom ? '#ffc107' : (hasPresetRule ? '#28a745' : '#6c757d'),
+                        color: 'white'
+                      }}>
+                        {hasCustom ? 'OVERRIDE' : (hasPresetRule ? 'SET' : 'UNSET')}
+                      </span>
                     </td>
                     <td style={{ padding: '12px' }}>
                       <select
@@ -136,7 +152,7 @@ export default function HeaderConfigModal({ previewData, onConfirm, onCancel, fi
                           width: '100%'
                         }}
                       >
-                        <option value="">-- Select --</option>
+                        <option value="">-- No override --</option>
                         <option value="regex">Regex</option>
                         <option value="range">Range</option>
                         <option value="length">Length</option>

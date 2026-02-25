@@ -16,10 +16,13 @@ export default function Dashboard() {
   const fetchJobs = async () => {
     try {
       const response = await apiService.getJobs();
-      setJobs(Array.isArray(response) ? response : []);
+      // Handle both direct array and data property
+      const jobsData = response.data ? (Array.isArray(response.data) ? response.data : [response.data]) : (Array.isArray(response) ? response : []);
+      setJobs(jobsData);
       setError('');
     } catch (err) {
       setError(`Error loading jobs: ${err.message}`);
+      setJobs([]);
     } finally {
       setLoading(false);
     }
