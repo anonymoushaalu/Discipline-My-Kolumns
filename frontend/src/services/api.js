@@ -50,6 +50,7 @@ export const apiService = {
   
   // Logs
   getLogs: (jobId) => axios.get(`${API_BASE}/logs/${jobId}`),
+  revalidateJob: (jobId) => axios.post(`${API_BASE}/revalidate-job/${jobId}`),
   
   // Clean Data
   getCleanData: (limit = 5, jobId = null) => {

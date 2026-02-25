@@ -785,6 +785,128 @@ def get_logs(job_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/revalidate-job/{job_id}")
+def revalidate_job(job_id: int):
+    """Revalidate a job with current system rules"""
+    try:
+        with engine.begin() as conn:
+            # Get all data (clean and quarantined) for this job
+            all_data = conn.execute(text("""
+                SELECT row_data FROM clean_data WHERE job_id = :job_id
+                UNION ALL
+                SELECT row_data FROM quarantine_data WHERE job_id = :job_id
+            """), {"job_id": job_id}).fetchall()
+            
+            if not all_data:
+                raise HTTPException(status_code=404, detail="No data found for this job")
+            
+            # Get current system rules
+            rules_result = conn.execute(text("""
+                SELECT column_name, rule_type, rule_value
+                FROM rules
+                WHERE is_active = TRUE
+            """))
+            
+            rules = {}
+            for r in rules_result.fetchall():
+                col_name = r[0]
+                if col_name not in rules:
+                    rules[col_name] = []
+                rules[col_name].append({"type": r[1], "value": r[2]})
+            
+            # Clear old logs for this job
+            conn.execute(text("DELETE FROM logs WHERE job_id = :job_id"), {"job_id": job_id})
+            
+            # Clear old data tables
+            conn.execute(text("DELETE FROM clean_data WHERE job_id = :job_id"), {"job_id": job_id})
+            conn.execute(text("DELETE FROM quarantine_data WHERE job_id = :job_id"), {"job_id": job_id})
+            
+            # Revalidate all rows
+            clean_count = 0
+            quarantine_count = 0
+            row_number = 0
+            
+            for row_data_json in all_data:
+                row_number += 1
+                import json
+                row = json.loads(row_data_json[0]) if isinstance(row_data_json[0], str) else row_data_json[0]
+                
+                row_valid = True
+                validation_errors = []
+                
+                # Apply current rules
+                for column, rules_list in rules.items():
+                    if column not in row:
+                        continue
+                    
+                    for rule in rules_list:
+                        is_valid = apply_rule(row[column], rule["type"], rule["value"])
+                        
+                        if not is_valid:
+                            row_valid = False
+                            validation_errors.append(f"Column '{column}' failed {rule['type']} rule")
+                            conn.execute(text("""
+                                INSERT INTO logs 
+                                (job_id, row_number, column_name, original_value, rule_applied, status_color)
+                                VALUES (:job_id, :row_number, :column_name, :original_value, :rule_applied, 'red')
+                            """), {
+                                "job_id": job_id,
+                                "row_number": row_number,
+                                "column_name": column,
+                                "original_value": str(row[column]),
+                                "rule_applied": f"{rule['type']}: {rule['value']}"
+                            })
+                
+                # Store result
+                if row_valid:
+                    clean_count += 1
+                    conn.execute(text("""
+                        INSERT INTO clean_data (job_id, row_number, name, age, row_data)
+                        VALUES (:job_id, :row_number, :name, :age, :row_data)
+                    """), {
+                        "job_id": job_id,
+                        "row_number": row_number,
+                        "name": row.get("name", ""),
+                        "age": row.get("age", ""),
+                        "row_data": json.dumps(row)
+                    })
+                else:
+                    quarantine_count += 1
+                    conn.execute(text("""
+                        INSERT INTO quarantine_data (job_id, row_number, name, age, row_data, validation_errors)
+                        VALUES (:job_id, :row_number, :name, :age, :row_data, :errors)
+                    """), {
+                        "job_id": job_id,
+                        "row_number": row_number,
+                        "name": row.get("name", ""),
+                        "age": row.get("age", ""),
+                        "row_data": json.dumps(row),
+                        "errors": ", ".join(validation_errors)
+                    })
+            
+            # Update job counts
+            conn.execute(text("""
+                UPDATE jobs
+                SET clean_rows = :clean, quarantined_rows = :quarantine
+                WHERE id = :job_id
+            """), {
+                "clean": clean_count,
+                "quarantine": quarantine_count,
+                "job_id": job_id
+            })
+        
+        return {
+            "message": "Job revalidated successfully",
+            "job_id": job_id,
+            "clean_rows": clean_count,
+            "quarantined_rows": quarantine_count,
+            "total_rows": clean_count + quarantine_count
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/clean-data")
 def get_clean_data(limit: int = 5, job_id: int = None):
     """Get clean data from the database with dynamic columns"""

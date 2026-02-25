@@ -28,6 +28,23 @@ export default function LogsPage() {
     }
   };
 
+  const handleRevalidate = async () => {
+    if (!window.confirm('Revalidate this job with current system rules? This will reprocess all data with updated rules.')) {
+      return;
+    }
+    setLoading(true);
+    setMessage('');
+    try {
+      const response = await apiService.revalidateJob(jobId);
+      setMessage(`Revalidation successful! Clean: ${response.clean_rows}, Quarantined: ${response.quarantined_rows}`);
+      fetchLogs(jobId);
+    } catch (error) {
+      setMessage(`Error revalidating: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusColor = (color) => {
     const map = {
       'green': '#d4edda',
@@ -50,17 +67,36 @@ export default function LogsPage() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '20px auto', padding: '20px', fontFamily: 'Arial' }}>
-      <h2>Audit Logs & Validation Details (Job #{jobId})</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ margin: 0 }}>Audit Logs & Validation Details (Job #{jobId})</h2>
+        <button
+          onClick={handleRevalidate}
+          disabled={loading || logs.length === 0}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: (loading || logs.length === 0) ? '#ccc' : '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: (loading || logs.length === 0) ? 'not-allowed' : 'pointer',
+            fontWeight: 'bold',
+            fontSize: '14px',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {loading ? 'Processing...' : 'Revalidate with Current Rules'}
+        </button>
+      </div>
 
       {message && (
         <div
           style={{
             padding: '12px',
             marginBottom: '20px',
-            backgroundColor: '#f8d7da',
-            color: '#721c24',
+            backgroundColor: message.includes('successful') ? '#d4edda' : '#f8d7da',
+            color: message.includes('successful') ? '#155724' : '#721c24',
             borderRadius: '4px',
-            border: '1px solid #f5c6cb'
+            border: `1px solid ${message.includes('successful') ? '#c3e6cb' : '#f5c6cb'}`
           }}
         >
           {message}
