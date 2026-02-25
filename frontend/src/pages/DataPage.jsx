@@ -3,25 +3,73 @@ import { apiService } from '../services/api';
 
 export default function DataPage() {
   const [cleanData, setCleanData] = useState([]);
+  const [columns, setColumns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedJobId, setSelectedJobId] = useState(null);
+  const [jobs, setJobs] = useState([]);
 
   useEffect(() => {
-    fetchCleanData();
+    fetchJobs();
   }, []);
 
-  const fetchCleanData = async () => {
+  const fetchJobs = async () => {
+    try {
+      const response = await apiService.getJobs();
+      const jobsList = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+      setJobs(jobsList);
+      
+      // Auto-select latest job if available
+      if (jobsList.length > 0 && !selectedJobId) {
+        setSelectedJobId(jobsList[0].id);
+        fetchCleanData(jobsList[0].id);
+      }
+    } catch (err) {
+      console.error('Error fetching jobs:', err);
+      setLoading(false);
+    }
+  };
+
+  const fetchCleanData = async (jobId = null) => {
     setLoading(true);
     try {
-      const response = await apiService.getCleanData(5);
-      setCleanData(Array.isArray(response.data) ? response.data : []);
+      // Fetch clean data
+      const dataResponse = await apiService.getCleanData(100, jobId);
+      const data = Array.isArray(dataResponse.data) ? dataResponse.data : [];
+      setCleanData(data);
+
+      // Extract columns from data
+      if (data.length > 0) {
+        // Get all unique keys from the data
+        const allKeys = new Set();
+        data.forEach(row => {
+          Object.keys(row).forEach(key => allKeys.add(key));
+        });
+        
+        // Exclude metadata columns and order them
+        const excludeColumns = ['id', 'job_id', 'created_at'];
+        const displayColumns = Array.from(allKeys)
+          .filter(col => !excludeColumns.includes(col))
+          .sort();
+        
+        // Add metadata columns at the end
+        const finalColumns = ['id', 'job_id', ...displayColumns, 'created_at'];
+        setColumns(finalColumns);
+      }
+
       setError('');
     } catch (err) {
       setError(`Error fetching data: ${err.message}`);
       setCleanData([]);
+      setColumns([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleJobChange = (jobId) => {
+    setSelectedJobId(jobId);
+    fetchCleanData(jobId);
   };
 
   if (loading) {
@@ -39,8 +87,35 @@ export default function DataPage() {
         marginBottom: '20px',
         border: '1px solid #b3d9ff'
       }}>
-        <strong>Info:</strong> This page displays the first 5 rows of clean, validated data stored in the database.
+        <strong>Info:</strong> This page displays clean, validated data. Column headers change based on your uploaded file structure.
       </div>
+
+      {/* Job Selection */}
+      {jobs.length > 0 && (
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px' }}>
+            Select Job to View:
+          </label>
+          <select
+            value={selectedJobId || ''}
+            onChange={(e) => handleJobChange(parseInt(e.target.value))}
+            style={{
+              padding: '10px',
+              borderRadius: '4px',
+              border: '1px solid #ddd',
+              width: '100%',
+              maxWidth: '400px',
+              fontSize: '14px'
+            }}
+          >
+            {jobs.map(job => (
+              <option key={job.id} value={job.id}>
+                Job #{job.id}: {job.job_name} ({job.clean_rows} clean rows)
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {error && (
         <div style={{
@@ -68,15 +143,25 @@ export default function DataPage() {
           <table style={{
             width: '100%',
             borderCollapse: 'collapse',
-            backgroundColor: 'white'
+            backgroundColor: 'white',
+            fontSize: '14px'
           }}>
             <thead>
               <tr style={{ backgroundColor: '#28a745', color: 'white' }}>
-                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #1e7e34' }}>Row ID</th>
-                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #1e7e34' }}>Job ID</th>
-                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #1e7e34' }}>Name</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #1e7e34' }}>Age</th>
-                <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #1e7e34' }}>Created At</th>
+                {columns.map((column) => (
+                  <th
+                    key={column}
+                    style={{
+                      padding: '12px',
+                      textAlign: column === 'id' || column === 'job_id' ? 'center' : 'left',
+                      borderBottom: '2px solid #1e7e34',
+                      fontWeight: 'bold',
+                      textTransform: 'capitalize'
+                    }}
+                  >
+                    {column === 'created_at' ? 'Created At' : column.replace(/_/g, ' ')}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -88,13 +173,25 @@ export default function DataPage() {
                     borderBottom: '1px solid #ddd'
                   }}
                 >
-                  <td style={{ padding: '12px', fontWeight: 'bold' }}>#{row.id}</td>
-                  <td style={{ padding: '12px' }}>Job #{row.job_id}</td>
-                  <td style={{ padding: '12px' }}>{row.name || '—'}</td>
-                  <td style={{ padding: '12px', textAlign: 'center' }}>{row.age || '—'}</td>
-                  <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>
-                    {row.created_at ? new Date(row.created_at).toLocaleString() : '—'}
-                  </td>
+                  {columns.map((column) => (
+                    <td
+                      key={`${row.id}-${column}`}
+                      style={{
+                        padding: '12px',
+                        textAlign: column === 'id' || column === 'job_id' ? 'center' : 'left',
+                        color: column === 'created_at' ? '#666' : 'inherit',
+                        fontSize: column === 'created_at' ? '12px' : '14px'
+                      }}
+                    >
+                      {column === 'created_at'
+                        ? row[column]
+                          ? new Date(row[column]).toLocaleString()
+                          : '—'
+                        : row[column] !== undefined && row[column] !== null
+                        ? String(row[column])
+                        : '—'}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -106,16 +203,16 @@ export default function DataPage() {
             borderTop: '1px solid #ddd',
             textAlign: 'center'
           }}>
-            <strong>Showing first 5 rows of clean data</strong>
+            <strong>Showing {cleanData.length} rows</strong>
             <p style={{ margin: '10px 0 0 0', fontSize: '12px', color: '#666' }}>
-              Total rows shown: {cleanData.length}
+              Columns: {columns.filter(c => !['id', 'job_id', 'created_at'].includes(c)).join(', ') || 'name, age'}
             </p>
           </div>
         </div>
       )}
 
       <button
-        onClick={fetchCleanData}
+        onClick={() => fetchCleanData(selectedJobId)}
         style={{
           marginTop: '20px',
           padding: '10px 20px',

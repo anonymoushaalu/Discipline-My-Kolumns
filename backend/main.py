@@ -107,6 +107,7 @@ async def upload_csv(file: UploadFile = File(...)):
     """
     Upload CSV file for data quality validation.
     Applies rules from database to validate each row.
+    Stores all columns dynamically.
     """
     try:
         # Validate file type
@@ -116,6 +117,12 @@ async def upload_csv(file: UploadFile = File(...)):
         # Read CSV file
         contents = await file.read()
         csv_reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
+        
+        # Get column names from CSV
+        if csv_reader.fieldnames is None:
+            raise HTTPException(status_code=400, detail="CSV file is empty or invalid")
+        
+        columns = list(csv_reader.fieldnames)
         
         conn = engine.connect()
         
@@ -136,12 +143,16 @@ async def upload_csv(file: UploadFile = File(...)):
                 "value": r[2]
             })
         
-        # Create a job record
+        # Create a job record with column information
+        import json
         job_result = conn.execute(text("""
-            INSERT INTO jobs (job_name, status, created_at)
-            VALUES (:job_name, 'processing', NOW())
+            INSERT INTO jobs (job_name, status, created_at, columns_info)
+            VALUES (:job_name, 'processing', NOW(), :columns_info)
             RETURNING id
-        """), {"job_name": file.filename})
+        """), {
+            "job_name": file.filename,
+            "columns_info": json.dumps(columns)
+        })
         
         job_id = job_result.scalar()
         conn.commit()
@@ -187,15 +198,19 @@ async def upload_csv(file: UploadFile = File(...)):
                             "rule_applied": f"{rule['type']}:{rule['value']}"
                         })
             
+            # Store all columns as JSON
+            row_data = json.dumps(dict(row))
+            
             # Insert into appropriate table
             if row_valid:
                 conn.execute(text("""
-                    INSERT INTO clean_data (job_id, name, age, created_at)
-                    VALUES (:job_id, :name, :age, NOW())
+                    INSERT INTO clean_data (job_id, name, age, row_data, created_at)
+                    VALUES (:job_id, :name, :age, :row_data, NOW())
                 """), {
                     "job_id": job_id,
                     "name": row.get("name", ""),
-                    "age": int(row.get("age", 0)) if row.get("age", "").isdigit() else 0
+                    "age": int(row.get("age", 0)) if row.get("age", "").isdigit() else 0,
+                    "row_data": row_data
                 })
                 clean_count += 1
                 
@@ -210,13 +225,14 @@ async def upload_csv(file: UploadFile = File(...)):
                 })
             else:
                 conn.execute(text("""
-                    INSERT INTO quarantine_data (job_id, name, age, error_reason, created_at)
-                    VALUES (:job_id, :name, :age, :error_reason, NOW())
+                    INSERT INTO quarantine_data (job_id, name, age, error_reason, row_data, created_at)
+                    VALUES (:job_id, :name, :age, :error_reason, :row_data, NOW())
                 """), {
                     "job_id": job_id,
                     "name": row.get("name", ""),
                     "age": int(row.get("age", 0)) if row.get("age", "").isdigit() else 0,
-                    "error_reason": "; ".join(validation_errors)
+                    "error_reason": "; ".join(validation_errors),
+                    "row_data": row_data
                 })
                 quarantine_count += 1
         
@@ -524,39 +540,79 @@ def get_logs(job_id: int):
 
 @app.get("/clean-data")
 def get_clean_data(limit: int = 5, job_id: int = None):
-    """Get clean data from the database - returns first N rows with actual data"""
+    """Get clean data from the database with dynamic columns"""
     try:
+        import json
         with engine.connect() as conn:
             if job_id:
                 # Get data from specific job
                 result = conn.execute(text(f"""
-                    SELECT id, job_id, name, age, created_at
+                    SELECT id, job_id, name, age, row_data, created_at
                     FROM clean_data
                     WHERE job_id = :job_id
                     ORDER BY id ASC
                     LIMIT {limit}
                 """), {"job_id": job_id})
             else:
-                # Get data from most recent job that has clean data with valid ages
+                # Get data from most recent job that has clean data
                 result = conn.execute(text(f"""
-                    SELECT id, job_id, name, age, created_at
+                    SELECT id, job_id, name, age, row_data, created_at
                     FROM clean_data
-                    WHERE age > 0
+                    WHERE row_data IS NOT NULL
                     ORDER BY job_id DESC, id ASC
                     LIMIT {limit}
                 """))
             
             rows = result.fetchall()
         
-        return [
-            {
+        data = []
+        for r in rows:
+            row_dict = {
                 "id": r[0],
                 "job_id": r[1],
-                "name": r[2] or "",
-                "age": r[3],
-                "created_at": str(r[4]) if r[4] else None
+                "created_at": str(r[5]) if r[5] else None
             }
-            for r in rows
-        ]
+            
+            # Add row_data fields
+            if r[4]:  # row_data column
+                try:
+                    row_data = json.loads(r[4])
+                    row_dict.update(row_data)
+                except:
+                    row_dict["name"] = r[2] or ""
+                    row_dict["age"] = r[3]
+            else:
+                # Fallback to structured columns
+                row_dict["name"] = r[2] or ""
+                row_dict["age"] = r[3]
+            
+            data.append(row_dict)
+        
+        return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/job-columns/{job_id}")
+def get_job_columns(job_id: int):
+    """Get the column names for a specific job"""
+    try:
+        import json
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT columns_info
+                FROM jobs
+                WHERE id = :job_id
+            """), {"job_id": job_id})
+            
+            job = result.fetchone()
+            
+            if not job or not job[0]:
+                # Fallback: try to infer columns from clean_data
+                return ["id", "job_id", "name", "age", "created_at"]
+            
+            columns = json.loads(job[0])
+            return columns
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

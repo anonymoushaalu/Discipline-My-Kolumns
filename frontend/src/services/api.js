@@ -36,5 +36,13 @@ export const apiService = {
   getLogs: (jobId) => axios.get(`${API_BASE}/logs/${jobId}`),
   
   // Clean Data
-  getCleanData: (limit = 5) => axios.get(`${API_BASE}/clean-data?limit=${limit}`)
+  getCleanData: (limit = 5, jobId = null) => {
+    if (jobId) {
+      return axios.get(`${API_BASE}/clean-data?limit=${limit}&job_id=${jobId}`);
+    }
+    return axios.get(`${API_BASE}/clean-data?limit=${limit}`);
+  },
+  
+  // Get job columns (dynamic)
+  getJobColumns: (jobId) => axios.get(`${API_BASE}/job-columns/${jobId}`)
 };
