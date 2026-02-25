@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 
@@ -11,6 +11,23 @@ export default function CreateJob() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
+  const [previousJobs, setPreviousJobs] = useState([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+
+  useEffect(() => {
+    fetchPreviousJobs();
+  }, []);
+
+  const fetchPreviousJobs = async () => {
+    try {
+      const response = await apiService.getJobs();
+      setPreviousJobs(Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []));
+      setLoadingJobs(false);
+    } catch (err) {
+      console.error('Error loading previous jobs:', err);
+      setLoadingJobs(false);
+    }
+  };
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);

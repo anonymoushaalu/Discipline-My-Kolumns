@@ -19,7 +19,7 @@ DATABASE_URL = "postgresql://postgres:AditiRao@127.0.0.1/mdm_db"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
-app = FastAPI(title="Discipline-My-Kolumns MDM System")
+app = FastAPI(title="MDM-Dev System")
 
 # Add CORS middleware to allow frontend to communicate with backend
 app.add_middleware(
@@ -33,7 +33,7 @@ app.add_middleware(
 @app.get("/")
 def read_root():
     """Health check endpoint"""
-    return {"message": "Discipline-My-Kolumns MDM System is running"}
+    return {"message": "MDM-Dev System is running"}
 
 @app.post("/setup-rules")
 def setup_rules():
@@ -523,16 +523,28 @@ def get_logs(job_id: int):
 
 
 @app.get("/clean-data")
-def get_clean_data(limit: int = 5):
-    """Get clean data from the database"""
+def get_clean_data(limit: int = 5, job_id: int = None):
+    """Get clean data from the database - returns first N rows with actual data"""
     try:
         with engine.connect() as conn:
-            result = conn.execute(text(f"""
-                SELECT id, job_id, name, age, created_at
-                FROM clean_data
-                ORDER BY id DESC
-                LIMIT {limit}
-            """))
+            if job_id:
+                # Get data from specific job
+                result = conn.execute(text(f"""
+                    SELECT id, job_id, name, age, created_at
+                    FROM clean_data
+                    WHERE job_id = :job_id
+                    ORDER BY id ASC
+                    LIMIT {limit}
+                """), {"job_id": job_id})
+            else:
+                # Get data from most recent job that has clean data with valid ages
+                result = conn.execute(text(f"""
+                    SELECT id, job_id, name, age, created_at
+                    FROM clean_data
+                    WHERE age > 0
+                    ORDER BY job_id DESC, id ASC
+                    LIMIT {limit}
+                """))
             
             rows = result.fetchall()
         

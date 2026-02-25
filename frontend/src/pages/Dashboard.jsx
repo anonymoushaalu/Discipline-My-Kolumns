@@ -25,11 +25,56 @@ export default function Dashboard() {
     }
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}>⏳ Loading dashboard...</div>;
+  if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}>Loading dashboard...</div>;
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px', fontFamily: 'Arial' }}>
-      {/* Process Overview */}
+      {/* Latest Created Job Header */}
+      {jobs.length > 0 && (
+        <div style={{
+          padding: '20px',
+          backgroundColor: '#d4edda',
+          borderRadius: '8px',
+          marginBottom: '30px',
+          border: '2px solid #28a745'
+        }}>
+          <h2 style={{ marginTop: 0, color: '#28a745' }}>Latest Job</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '20px' }}>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Job ID</p>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', marginTop: 0 }}>{jobs[0].id}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Name</p>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', marginTop: 0 }}>{jobs[0].job_name}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Total Rows</p>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', marginTop: 0 }}>{jobs[0].total_rows}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Clean Rows</p>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#28a745', marginTop: 0 }}>{jobs[0].clean_rows}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Quarantined</p>
+              <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#dc3545', marginTop: 0 }}>{jobs[0].quarantined_rows}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>Status</p>
+              <p style={{
+                fontSize: '18px',
+                fontWeight: 'bold',
+                marginTop: 0,
+                color: jobs[0].status === 'completed' ? '#28a745' : '#ffc107'
+              }}>
+                {jobs[0].status === 'completed' ? 'Completed' : 'Processing'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{
         padding: '30px',
         backgroundColor: '#e7f3ff',
@@ -37,28 +82,28 @@ export default function Dashboard() {
         marginBottom: '30px',
         border: '2px solid #007bff'
       }}>
-        <h2 style={{ marginTop: 0, color: '#007bff' }}>🎯 How It Works</h2>
+        <h2 style={{ marginTop: 0, color: '#007bff' }}>How It Works</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px' }}>
           <div>
-            <h4 style={{ marginTop: 0 }}>📤 Step 1: Upload Data</h4>
+            <h4 style={{ marginTop: 0 }}>Step 1: Upload Data</h4>
             <p style={{ fontSize: '14px', marginBottom: 0 }}>
               Import your CSV, Excel, or database data through the Create Job page.
             </p>
           </div>
           <div>
-            <h4 style={{ marginTop: 0 }}>✅ Step 2: Validate</h4>
+            <h4 style={{ marginTop: 0 }}>Step 2: Validate</h4>
             <p style={{ fontSize: '14px', marginBottom: 0 }}>
               System automatically applies rules to check data quality.
             </p>
           </div>
           <div>
-            <h4 style={{ marginTop: 0 }}>🗂️ Step 3: Sort</h4>
+            <h4 style={{ marginTop: 0 }}>Step 3: Sort</h4>
             <p style={{ fontSize: '14px', marginBottom: 0 }}>
               Clean data goes to ready-to-use database. Bad data goes to quarantine.
             </p>
           </div>
           <div>
-            <h4 style={{ marginTop: 0 }}>🔧 Step 4: Fix & Review</h4>
+            <h4 style={{ marginTop: 0 }}>Step 4: Fix & Review</h4>
             <p style={{ fontSize: '14px', marginBottom: 0 }}>
               Edit quarantined data and re-validate until it's clean.
             </p>
@@ -75,11 +120,11 @@ export default function Dashboard() {
           fontWeight: 'bold',
           cursor: 'pointer'
         }}>
-          🚀 Create Your First Job
+          Create Your First Job
         </Link>
       </div>
 
-      <h2>📊 Recent Jobs</h2>
+      <h2>Recent Jobs</h2>
 
       {error && (
         <div style={{
@@ -137,7 +182,7 @@ export default function Dashboard() {
                       fontWeight: 'bold',
                       color: job.status === 'completed' ? '#28a745' : '#ffc107'
                     }}>
-                      {job.status === 'completed' ? '✅ Completed' : '⏳ Processing'}
+                      {job.status === 'completed' ? 'Completed' : 'Processing'}
                     </td>
                     <td style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>
                       <Link
@@ -149,7 +194,7 @@ export default function Dashboard() {
                           cursor: 'pointer'
                         }}
                       >
-                        📋 View
+                        View
                       </Link>
                     </td>
                   </tr>
@@ -174,7 +219,7 @@ export default function Dashboard() {
             fontWeight: 'bold'
           }}
         >
-          🔄 Refresh
+          Refresh
         </button>
       </div>
     </div>
