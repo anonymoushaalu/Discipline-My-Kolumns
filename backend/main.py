@@ -9,6 +9,9 @@ import io
 from datetime import datetime
 import sys
 from pathlib import Path
+import openpyxl
+import xlrd
+import json
 
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -105,24 +108,72 @@ def update_rule_put(rule_id: int, rule: RuleUpdate):
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
     """
-    Upload CSV file for data quality validation.
+    Upload CSV or Excel file for data quality validation.
     Applies rules from database to validate each row.
     Stores all columns dynamically.
+    Supports: .csv, .xls, .xlsx
     """
     try:
         # Validate file type
-        if not file.filename.endswith('.csv'):
-            raise HTTPException(status_code=400, detail="File must be a CSV")
+        filename_lower = file.filename.lower()
+        if not (filename_lower.endswith('.csv') or filename_lower.endswith('.xls') or filename_lower.endswith('.xlsx')):
+            raise HTTPException(status_code=400, detail="File must be CSV, XLS, or XLSX format")
         
-        # Read CSV file
+        # Read file contents
         contents = await file.read()
-        csv_reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
+        rows_list = []
+        columns = []
         
-        # Get column names from CSV
-        if csv_reader.fieldnames is None:
-            raise HTTPException(status_code=400, detail="CSV file is empty or invalid")
+        # Parse file based on extension
+        if filename_lower.endswith('.csv'):
+            # Parse CSV
+            csv_reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
+            if csv_reader.fieldnames is None:
+                raise HTTPException(status_code=400, detail="CSV file is empty or invalid")
+            columns = list(csv_reader.fieldnames)
+            rows_list = list(csv_reader)
         
-        columns = list(csv_reader.fieldnames)
+        elif filename_lower.endswith('.xlsx'):
+            # Parse XLSX
+            excel_book = openpyxl.load_workbook(io.BytesIO(contents))
+            sheet = excel_book.active
+            
+            # Get column headers from first row
+            columns = [cell.value for cell in sheet[1]]
+            if not columns or columns == [None]:
+                raise HTTPException(status_code=400, detail="Excel file is empty or has no headers")
+            
+            # Read rows starting from row 2
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                if all(cell is None for cell in row):
+                    continue
+                row_dict = dict(zip(columns, row))
+                rows_list.append(row_dict)
+            
+            if not rows_list:
+                raise HTTPException(status_code=400, detail="Excel file has no data rows")
+        
+        elif filename_lower.endswith('.xls'):
+            # Parse XLS
+            excel_book = xlrd.open_workbook(file_contents=contents)
+            sheet = excel_book.sheet_by_index(0)
+            
+            # Get column headers from first row
+            if sheet.nrows == 0:
+                raise HTTPException(status_code=400, detail="XLS file is empty")
+            
+            columns = [str(sheet.cell_value(0, col_idx)) for col_idx in range(sheet.ncols)]
+            
+            # Read rows starting from row 2
+            for row_idx in range(1, sheet.nrows):
+                row_values = [sheet.cell_value(row_idx, col_idx) for col_idx in range(sheet.ncols)]
+                if all(not val for val in row_values):
+                    continue
+                row_dict = dict(zip(columns, row_values))
+                rows_list.append(row_dict)
+            
+            if not rows_list:
+                raise HTTPException(status_code=400, detail="XLS file has no data rows")
         
         conn = engine.connect()
         
@@ -144,7 +195,6 @@ async def upload_csv(file: UploadFile = File(...)):
             })
         
         # Create a job record with column information
-        import json
         job_result = conn.execute(text("""
             INSERT INTO jobs (job_name, status, created_at, columns_info)
             VALUES (:job_name, 'processing', NOW(), :columns_info)
@@ -157,13 +207,13 @@ async def upload_csv(file: UploadFile = File(...)):
         job_id = job_result.scalar()
         conn.commit()
         
-        # Process CSV rows
+        # Process rows
         clean_count = 0
         quarantine_count = 0
         total_count = 0
         row_number = 0
         
-        for row in csv_reader:
+        for row in rows_list:
             row_number += 1
             total_count += 1
             row_valid = True
@@ -209,7 +259,7 @@ async def upload_csv(file: UploadFile = File(...)):
                 """), {
                     "job_id": job_id,
                     "name": row.get("name", ""),
-                    "age": int(row.get("age", 0)) if row.get("age", "").isdigit() else 0,
+                    "age": int(row.get("age", 0)) if str(row.get("age", "")).isdigit() else 0,
                     "row_data": row_data
                 })
                 clean_count += 1
@@ -230,7 +280,7 @@ async def upload_csv(file: UploadFile = File(...)):
                 """), {
                     "job_id": job_id,
                     "name": row.get("name", ""),
-                    "age": int(row.get("age", 0)) if row.get("age", "").isdigit() else 0,
+                    "age": int(row.get("age", 0)) if str(row.get("age", "")).isdigit() else 0,
                     "error_reason": "; ".join(validation_errors),
                     "row_data": row_data
                 })
@@ -252,7 +302,7 @@ async def upload_csv(file: UploadFile = File(...)):
         conn.close()
         
         return {
-            "message": "CSV processed successfully",
+            "message": "File processed successfully",
             "job_id": job_id,
             "total_rows": total_count,
             "clean_rows": clean_count,

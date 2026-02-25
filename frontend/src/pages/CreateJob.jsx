@@ -196,8 +196,8 @@ export default function CreateJob() {
                 />
                 <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
                   {sourceType === 'csv' 
-                    ? 'Upload a CSV file with columns: name, age' 
-                    : 'Upload an Excel file with columns: name, age'}
+                    ? 'Upload a CSV file. Supports any column structure.' 
+                    : 'Upload an Excel file (XLS or XLSX). Supports any column structure.'}
                 </small>
               </div>
 
