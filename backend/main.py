@@ -12,6 +12,8 @@ from pathlib import Path
 import openpyxl
 import xlrd
 import json
+import itertools
+import re
 
 # Add backend directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -147,13 +149,120 @@ def update_rule_put(rule_id: int, rule: RuleUpdate):
     except Exception as e:
         return {"error": str(e)}
 
+@app.post("/preview-file")
+async def preview_file(file: UploadFile = File(...)):
+    """
+    Preview file headers and first few rows without processing the entire file.
+    Detects column data types and checks for existing rules.
+    Returns metadata for rule configuration.
+    """
+    try:
+        filename_lower = file.filename.lower()
+        contents = await file.read()
+        headers = []
+        sample_rows = []
+        
+        # Parse file based on extension
+        if filename_lower.endswith('.csv'):
+            csv_reader = csv.DictReader(io.StringIO(contents.decode('utf-8')))
+            if csv_reader.fieldnames is None:
+                raise HTTPException(status_code=400, detail="CSV file is empty or invalid")
+            headers = list(csv_reader.fieldnames)
+            sample_rows = list(itertools.islice(csv_reader, 5))  # Get first 5 rows
+        
+        elif filename_lower.endswith('.xlsx'):
+            excel_book = openpyxl.load_workbook(io.BytesIO(contents))
+            sheet = excel_book.active
+            headers = [cell.value for cell in sheet[1]]
+            if not headers or headers == [None]:
+                raise HTTPException(status_code=400, detail="Excel file is empty or has no headers")
+            for row in itertools.islice(sheet.iter_rows(min_row=2, values_only=True), 5):
+                if all(cell is None for cell in row):
+                    continue
+                sample_rows.append(dict(zip(headers, row)))
+        
+        elif filename_lower.endswith('.xls'):
+            excel_book = xlrd.open_workbook(file_contents=contents)
+            sheet = excel_book.sheet_by_index(0)
+            if sheet.nrows == 0:
+                raise HTTPException(status_code=400, detail="XLS file is empty")
+            headers = [str(sheet.cell_value(0, col_idx)) for col_idx in range(sheet.ncols)]
+            for row_idx in range(1, min(6, sheet.nrows)):
+                row_values = [sheet.cell_value(row_idx, col_idx) for col_idx in range(sheet.ncols)]
+                if all(not val for val in row_values):
+                    continue
+                sample_rows.append(dict(zip(headers, row_values)))
+        
+        else:
+            raise HTTPException(status_code=400, detail="File must be CSV, XLS, or XLSX format")
+        
+        # Fetch system rules from database
+        with engine.connect() as conn:
+            rules_result = conn.execute(text("""
+                SELECT column_name, rule_type, rule_value
+                FROM rules
+                WHERE is_active = TRUE
+            """))
+            system_rules = {r[0]: {"type": r[1], "value": r[2]} for r in rules_result.fetchall()}
+        
+        # Auto-detect column data types
+        column_metadata = []
+        for header in headers:
+            detected_type = "text"  # default
+            
+            # Sample data from first few rows
+            if sample_rows:
+                sample_values = [str(row.get(header, "")).strip() for row in sample_rows if header in row]
+                
+                # Detect type based on sample values
+                if sample_values:
+                    # Check if all numeric
+                    try:
+                        all(float(v) for v in sample_values if v)
+                        detected_type = "number"
+                    except:
+                        pass
+                    
+                    # Check if email-like
+                    if detected_type == "text" and all("@" in v for v in sample_values if v):
+                        detected_type = "email"
+                    
+                    # Check if date-like
+                    if detected_type == "text" and sample_values:
+                        date_patterns = [r'\d{1,4}[-/]\d{1,2}[-/]\d{1,4}', r'\d{4}-\d{2}-\d{2}']
+                        if any(any(re.search(pattern, v) for pattern in date_patterns) for v in sample_values if v):
+                            detected_type = "date"
+            
+            system_rule = system_rules.get(header, None)
+            
+            column_metadata.append({
+                "name": header,
+                "detected_type": detected_type,
+                "system_rule": system_rule,
+                "custom_rule": None  # Will be set by user
+            })
+        
+        return {
+            "file_name": file.filename,
+            "columns": column_metadata,
+            "sample_rows": sample_rows,
+            "total_columns": len(headers)
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/upload")
-async def upload_csv(file: UploadFile = File(...)):
+async def upload_csv(file: UploadFile = File(...), column_rules: str = None):
     """
     Upload CSV or Excel file for data quality validation.
     Applies rules from database to validate each row.
     Stores all columns dynamically.
+
     Supports: .csv, .xls, .xlsx
+    
+    Optional: column_rules - JSON string with custom rules for each column
+    Format: {"column_name": {"type": "regex", "value": "pattern"}, ...}
     """
     try:
         # Validate file type
@@ -220,6 +329,14 @@ async def upload_csv(file: UploadFile = File(...)):
         
         # Use proper transaction context manager for SQLAlchemy 2.0
         with engine.begin() as conn:
+            # Parse custom column rules if provided
+            custom_rules_map = {}
+            if column_rules:
+                try:
+                    custom_rules_map = json.loads(column_rules)
+                except:
+                    custom_rules_map = {}
+            
             # Fetch active rules from database
             rules_result = conn.execute(text("""
                 SELECT column_name, rule_type, rule_value
@@ -230,12 +347,31 @@ async def upload_csv(file: UploadFile = File(...)):
             rules = rules_result.fetchall()
             
             # Build rule_map: {column_name: [{"type": ..., "value": ...}, ...]}
+            # Use custom rules if provided for a column, otherwise use system rules
             rule_map = {}
             for r in rules:
-                rule_map.setdefault(r[0], []).append({
-                    "type": r[1],
-                    "value": r[2]
-                })
+                col_name = r[0]
+                # If custom rule exists for this column, use it instead, otherwise use system rule
+                if col_name in custom_rules_map:
+                    custom_rule = custom_rules_map[col_name]
+                    if custom_rule and custom_rule.get("type"):
+                        rule_map.setdefault(col_name, []).append({
+                            "type": custom_rule["type"],
+                            "value": custom_rule.get("value", "")
+                        })
+                else:
+                    rule_map.setdefault(col_name, []).append({
+                        "type": r[1],
+                        "value": r[2]
+                    })
+            
+            # Also add any custom rules for columns that don't have system rules
+            for col_name, custom_rule in custom_rules_map.items():
+                if col_name not in rule_map and custom_rule and custom_rule.get("type"):
+                    rule_map[col_name] = [{
+                        "type": custom_rule["type"],
+                        "value": custom_rule.get("value", "")
+                    }]
             
             # Create a job record with column information
             job_result = conn.execute(text("""

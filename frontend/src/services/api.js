@@ -8,10 +8,21 @@ export const apiService = {
   getJobStatus: (jobId) => axios.get(`${API_BASE}/jobs/${jobId}`),
   
   // Upload
-  uploadCSV: (file) => {
+  uploadCSV: (file, columnRules = null) => {
     const formData = new FormData();
     formData.append('file', file);
+    if (columnRules) {
+      formData.append('column_rules', JSON.stringify(columnRules));
+    }
     return axios.post(`${API_BASE}/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  
+  previewFile: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return axios.post(`${API_BASE}/preview-file`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },

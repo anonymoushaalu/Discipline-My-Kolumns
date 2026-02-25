@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
+import HeaderConfigModal from '../components/HeaderConfigModal';
 
 export default function CreateJob() {
   const navigate = useNavigate();
@@ -11,31 +12,18 @@ export default function CreateJob() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
-  const [previousJobs, setPreviousJobs] = useState([]);
-  const [loadingJobs, setLoadingJobs] = useState(true);
-
-  useEffect(() => {
-    fetchPreviousJobs();
-  }, []);
-
-  const fetchPreviousJobs = async () => {
-    try {
-      const response = await apiService.getJobs();
-      setPreviousJobs(Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []));
-      setLoadingJobs(false);
-    } catch (err) {
-      console.error('Error loading previous jobs:', err);
-      setLoadingJobs(false);
-    }
-  };
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
     setError('');
     setResult(null);
+    setShowPreview(false);
   };
 
-  const handleUpload = async (e) => {
+  const handlePreview = async (e) => {
     e.preventDefault();
     
     if (sourceType === 'csv' || sourceType === 'excel') {
@@ -43,63 +31,57 @@ export default function CreateJob() {
         setError('Please select a file');
         return;
       }
-    } else if (sourceType === 'database') {
-      if (!databaseConfig.host || !databaseConfig.database) {
-        setError('Please fill in database connection details');
-        return;
-      }
     }
 
+    setPreviewLoading(true);
+    setError('');
+
+    try {
+      const preview = await apiService.previewFile(file);
+      setPreviewData(preview.data || preview);
+      setShowPreview(true);
+    } catch (err) {
+      setError(`Preview failed: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleConfirmUpload = async (columnRules) => {
+    setShowPreview(false);
     setLoading(true);
     setError('');
     setProgress('Starting upload...');
 
     try {
-      let response;
+      const fileType = file.name.toLowerCase().endsWith('.csv') ? 'CSV' : 'Excel';
+      setProgress('File validation...');
+      await new Promise(r => setTimeout(r, 500));
       
-      if (sourceType === 'csv' || sourceType === 'excel') {
-        setProgress('File validation...');
-        await new Promise(r => setTimeout(r, 500));
-        
-        setProgress('Sending file to server...');
-        await new Promise(r => setTimeout(r, 500));
-        
-        setProgress('Reading CSV data...');
-        await new Promise(r => setTimeout(r, 800));
-        
-        setProgress('Fetching validation rules from database...');
-        await new Promise(r => setTimeout(r, 600));
-        
-        setProgress('Validating each row...');
-        await new Promise(r => setTimeout(r, 1200));
-        
-        setProgress('Storing clean data in database...');
-        await new Promise(r => setTimeout(r, 800));
-        
-        setProgress('Storing quarantined data...');
-        await new Promise(r => setTimeout(r, 600));
-        
-        setProgress('Creating audit logs...');
-        await new Promise(r => setTimeout(r, 800));
-        
-        setProgress('Job completed! Preparing results...');
-        
-        response = await apiService.uploadCSV(file);
-      } else if (sourceType === 'database') {
-        setProgress('Connecting to database...');
-        await new Promise(r => setTimeout(r, 800));
-        
-        setProgress('Reading data from database...');
-        await new Promise(r => setTimeout(r, 1200));
-        
-        setProgress('Validating rows...');
-        await new Promise(r => setTimeout(r, 1500));
-        
-        setProgress('Processing results...');
-        await new Promise(r => setTimeout(r, 800));
-        
-        response = await apiService.uploadCSV(file); // Placeholder
-      }
+      setProgress('Sending file to server...');
+      await new Promise(r => setTimeout(r, 500));
+      
+      setProgress(`Reading ${fileType} data...`);
+      await new Promise(r => setTimeout(r, 800));
+      
+      setProgress('Fetching validation rules from database...');
+      await new Promise(r => setTimeout(r, 600));
+      
+      setProgress('Validating each row...');
+      await new Promise(r => setTimeout(r, 1200));
+      
+      setProgress('Storing clean data in database...');
+      await new Promise(r => setTimeout(r, 800));
+      
+      setProgress('Storing quarantined data...');
+      await new Promise(r => setTimeout(r, 600));
+      
+      setProgress('Creating audit logs...');
+      await new Promise(r => setTimeout(r, 800));
+      
+      setProgress('Job completed! Preparing results...');
+      
+      const response = await apiService.uploadCSV(file, columnRules);
       
       setResult(response.data || response);
       setFile(null);
@@ -110,6 +92,24 @@ export default function CreateJob() {
       setProgress('');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    
+    if (sourceType === 'csv' || sourceType === 'excel') {
+      if (!file) {
+        setError('Please select a file');
+        return;
+      }
+      // Show preview modal instead of directly uploading
+      await handlePreview(e);
+    } else if (sourceType === 'database') {
+      if (!databaseConfig.host || !databaseConfig.database) {
+        setError('Please fill in database connection details');
+        return;
+      }
     }
   };
 
@@ -203,20 +203,20 @@ export default function CreateJob() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || previewLoading}
                 style={{
                   width: '100%',
                   padding: '12px',
-                  backgroundColor: loading ? '#ccc' : '#28a745',
+                  backgroundColor: (loading || previewLoading) ? '#ccc' : '#007bff',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  cursor: (loading || previewLoading) ? 'not-allowed' : 'pointer',
                   fontSize: '16px',
                   fontWeight: 'bold'
                 }}
               >
-                {loading ? 'Processing...' : 'Upload & Process'}
+                {previewLoading ? 'Loading Preview...' : (loading ? 'Processing...' : 'Preview & Configure')}
               </button>
             </form>
           )}
@@ -375,55 +375,15 @@ export default function CreateJob() {
         </div>
       </div>
 
-      {/* Previous Jobs Section */}
-      <div style={{ marginTop: '40px' }}>
-        <h2>Previous Data Created</h2>
-        {loadingJobs ? (
-          <p style={{ textAlign: 'center', color: '#666' }}>Loading previous jobs...</p>
-        ) : previousJobs.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#999', padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
-            No previous jobs. Create one above!
-          </p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              backgroundColor: 'white',
-              border: '1px solid #ddd'
-            }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Job ID</th>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>File Name</th>
-                  <th style={{ padding: '12px', textAlign: 'center' }}>Total Rows</th>
-                  <th style={{ padding: '12px', textAlign: 'center' }}>Clean</th>
-                  <th style={{ padding: '12px', textAlign: 'center' }}>Quarantined</th>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
-                  <th style={{ padding: '12px', textAlign: 'center' }}>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {previousJobs.slice(0, 10).map((job, index) => (
-                  <tr key={job.id} style={{ borderBottom: '1px solid #eee', backgroundColor: index % 2 === 0 ? '#fff' : '#f9f9f9' }}>
-                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{job.id}</td>
-                    <td style={{ padding: '12px' }}>{job.job_name}</td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>{job.total_rows}</td>
-                    <td style={{ padding: '12px', textAlign: 'center', color: '#28a745', fontWeight: 'bold' }}>{job.clean_rows}</td>
-                    <td style={{ padding: '12px', textAlign: 'center', color: '#dc3545', fontWeight: 'bold' }}>{job.quarantined_rows}</td>
-                    <td style={{ padding: '12px', color: job.status === 'completed' ? '#28a745' : '#ffc107' }}>
-                      {job.status === 'completed' ? 'Completed' : 'Processing'}
-                    </td>
-                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '12px' }}>
-                      {job.created_at ? new Date(job.created_at).toLocaleDateString() : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* Header Configuration Modal */}
+      {showPreview && (
+        <HeaderConfigModal
+          previewData={previewData}
+          onConfirm={handleConfirmUpload}
+          onCancel={() => setShowPreview(false)}
+          fileName={file?.name}
+        />
+      )}
 
       <style>{`
         @keyframes pulse {

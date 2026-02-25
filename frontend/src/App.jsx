@@ -5,7 +5,6 @@ import CreateJob from './pages/CreateJob';
 import RulesPage from './pages/RulesPage';
 import QuarantinePage from './pages/QuarantinePage';
 import LogsPage from './pages/LogsPage';
-import DataPage from './pages/DataPage';
 import './App.css';
 
 function App() {
@@ -15,7 +14,6 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/create-job" element={<CreateJob />} />
-        <Route path="/data" element={<DataPage />} />
         <Route path="/rules" element={<RulesPage />} />
         <Route path="/quarantine" element={<QuarantinePage />} />
         <Route path="/logs/:jobId" element={<LogsPage />} />
