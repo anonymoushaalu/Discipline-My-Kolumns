@@ -28,6 +28,18 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteJob = async (jobId, jobName) => {
+    if (window.confirm(`Are you sure you want to delete the job "${jobName}" and all associated data?`)) {
+      try {
+        await apiService.deleteJob(jobId);
+        setJobs(jobs.filter(j => j.id !== jobId));
+        setError('');
+      } catch (err) {
+        setError(`Error deleting job: ${err.message}`);
+      }
+    }
+  };
+
   if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}>Loading dashboard...</div>;
 
   return (
@@ -124,6 +136,7 @@ export default function Dashboard() {
                 <th style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>Quarantine</th>
                 <th style={{ padding: '12px', textAlign: 'left', border: '1px solid #ddd' }}>Status</th>
                 <th style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>Logs</th>
+                <th style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>Delete</th>
               </tr>
             </thead>
             <tbody>
@@ -160,6 +173,23 @@ export default function Dashboard() {
                       >
                         View
                       </Link>
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center', border: '1px solid #ddd' }}>
+                      <button
+                        onClick={() => handleDeleteJob(job.id, job.job_name)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '3px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 );

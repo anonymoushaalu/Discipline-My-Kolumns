@@ -630,6 +630,25 @@ def get_jobs():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.delete("/jobs/{job_id}")
+def delete_job(job_id: int):
+    """Delete a job and all associated data"""
+    try:
+        with engine.connect() as conn:
+            # Delete logs
+            conn.execute(text("DELETE FROM logs WHERE job_id = :job_id"), {"job_id": job_id})
+            # Delete clean data
+            conn.execute(text("DELETE FROM clean_data WHERE job_id = :job_id"), {"job_id": job_id})
+            # Delete quarantine data
+            conn.execute(text("DELETE FROM quarantine_data WHERE job_id = :job_id"), {"job_id": job_id})
+            # Delete job
+            conn.execute(text("DELETE FROM jobs WHERE id = :job_id"), {"job_id": job_id})
+            conn.commit()
+        return {"message": "Job deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/quarantine")
 def get_quarantine():
     """Get all quarantined rows"""

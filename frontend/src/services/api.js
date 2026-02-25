@@ -6,6 +6,7 @@ export const apiService = {
   // Jobs
   getJobs: () => axios.get(`${API_BASE}/jobs`),
   getJobStatus: (jobId) => axios.get(`${API_BASE}/jobs/${jobId}`),
+  deleteJob: (jobId) => axios.delete(`${API_BASE}/jobs/${jobId}`),
   
   // Upload
   uploadCSV: (file, columnRules = null) => {
