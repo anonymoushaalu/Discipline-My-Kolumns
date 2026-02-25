@@ -39,6 +39,7 @@ export const apiService = {
       rule_type: ruleType,
       rule_value: ruleValue
     }),
+  deleteRule: (ruleId) => axios.delete(`${API_BASE}/rules/${ruleId}`),
   
   // Quarantine
   getQuarantine: () => axios.get(`${API_BASE}/quarantine`),

@@ -55,18 +55,16 @@ export default function RulesPage() {
     setLoading(true);
     setMessage('');
 
-    // Check for conflicts with existing rules
-    const conflictingRule = rules.find(
-      rule => rule.column_name === columnName && rule.rule_type === ruleType
+    // Check for duplicate column name
+    const duplicateRule = rules.find(
+      rule => rule.column_name.toLowerCase() === columnName.toLowerCase()
     );
 
-    if (conflictingRule) {
-      const conflictMsg = `Rule for column "${columnName}" already exists with ${ruleType} rule: ${conflictingRule.rule_value}. Do you want to replace it?`;
-      if (!window.confirm(conflictMsg)) {
-        setMessage('Rule addition cancelled');
-        setLoading(false);
-        return;
-      }
+    if (duplicateRule) {
+      setMessage(`Rule for column "${columnName}" already exists. Please delete it first or use a different column name.`);
+      setLoading(false);
+      setTimeout(() => setMessage(''), 5000);
+      return;
     }
 
     try {
@@ -75,6 +73,7 @@ export default function RulesPage() {
       setColumnName('');
       setRuleType('regex');
       setRuleValue('');
+      setDescription('');
       fetchRules();
     } catch (error) {
       setMessage(`Error: ${error.response?.data?.detail || error.message}`);
@@ -102,6 +101,25 @@ export default function RulesPage() {
       fetchRules();
     } catch (error) {
       setMessage(`Error updating rule: ${error.message}`);
+    }
+  };
+
+  const handleDelete = async (id, columnName) => {
+    if (window.confirm(`Are you sure you want to delete the rule for column "${columnName}"?`)) {
+      try {
+        await apiService.deleteRule(id);
+        setMessage(`Rule for "${columnName}" deleted successfully`);
+        setEditedRuleIds(prev => {
+          const updated = new Set([...prev]);
+          updated.delete(id);
+          return updated;
+        });
+        setTimeout(() => setMessage(''), 3000);
+        fetchRules();
+      } catch (error) {
+        setMessage(`Error deleting rule: ${error.message}`);
+        setTimeout(() => setMessage(''), 3000);
+      }
     }
   };
 
@@ -402,10 +420,26 @@ export default function RulesPage() {
                               borderRadius: '3px',
                               cursor: 'pointer',
                               fontSize: '12px',
-                              fontWeight: 'bold'
+                              fontWeight: 'bold',
+                              marginRight: '6px'
                             }}
                           >
                             Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(rule.id, rule.column_name)}
+                            style={{
+                              padding: '6px 16px',
+                              backgroundColor: '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            Delete
                           </button>
                         </td>
                       </>

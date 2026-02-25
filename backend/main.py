@@ -586,6 +586,21 @@ def update_rule(rule_id: int, column_name: str, rule_type: str, rule_value: str)
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.delete("/rules/{rule_id}")
+def delete_rule(rule_id: int):
+    """Delete a validation rule"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                DELETE FROM rules
+                WHERE id = :id
+            """), {"id": rule_id})
+            conn.commit()
+        return {"message": "Rule deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/jobs")
 def get_jobs():
     """Get all jobs sorted by most recent first"""
