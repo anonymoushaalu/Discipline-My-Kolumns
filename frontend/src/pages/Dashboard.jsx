@@ -140,9 +140,16 @@ export default function Dashboard() {
       )}
 
       {jobs.length === 0 ? (
-        <p style={{ textAlign: 'center', fontSize: '16px', color: '#666' }}>
-          No jobs yet. <Link to="/create-job">Create one now</Link>
-        </p>
+        <div style={{
+          padding: '20px',
+          backgroundColor: '#f0f0f0',
+          borderRadius: '4px',
+          textAlign: 'center',
+          color: '#666',
+          fontSize: '14px'
+        }}>
+          No jobs yet. Start by creating a job on the Create Job page.
+        </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{

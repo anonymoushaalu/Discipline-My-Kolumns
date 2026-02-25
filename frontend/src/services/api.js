@@ -33,7 +33,12 @@ export const apiService = {
     axios.post(`${API_BASE}/add-rule`, null, {
       params: { column_name: columnName, rule_type: ruleType, rule_value: ruleValue }
     }),
-  updateRule: (ruleId, data) => axios.put(`${API_BASE}/rules/${ruleId}`, data),
+  updateRule: (ruleId, columnName, ruleType, ruleValue) => 
+    axios.put(`${API_BASE}/rules/${ruleId}`, {
+      column_name: columnName,
+      rule_type: ruleType,
+      rule_value: ruleValue
+    }),
   
   // Quarantine
   getQuarantine: () => axios.get(`${API_BASE}/quarantine`),

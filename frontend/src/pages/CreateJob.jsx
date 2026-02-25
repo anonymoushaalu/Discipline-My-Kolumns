@@ -47,7 +47,11 @@ export default function CreateJob() {
     }
   };
 
-  const handleConfirmUpload = async (columnRules) => {
+  const handleConfirmUpload = async (configData) => {
+    // configData now has { rules, columnNames }
+    const columnRules = configData.rules || configData;
+    const columnNames = configData.columnNames || {};
+    
     setShowPreview(false);
     setLoading(true);
     setError('');
@@ -341,6 +345,21 @@ export default function CreateJob() {
               <p style={{ color: '#dc3545', fontWeight: 'bold' }}>Quarantined Rows: {result.quarantined_rows}</p>
 
               <div style={{ marginTop: '15px', display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => navigate(`/logs/${result.job_id}`)}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#0056b3',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    textDecoration: 'none'
+                  }}
+                >
+                  View Job Details
+                </button>
                 <button
                   onClick={() => navigate('/')}
                   style={{

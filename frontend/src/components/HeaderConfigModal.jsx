@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 export default function HeaderConfigModal({ previewData, onConfirm, onCancel, fileName }) {
   const [columnRules, setColumnRules] = useState({});
+  const [columnNames, setColumnNames] = useState({});
 
   const handleRuleChange = (columnName, field, value) => {
     setColumnRules(prev => ({
@@ -10,6 +11,13 @@ export default function HeaderConfigModal({ previewData, onConfirm, onCancel, fi
         ...(prev[columnName] || {}),
         [field]: value
       }
+    }));
+  };
+
+  const handleColumnNameChange = (originalName, newName) => {
+    setColumnNames(prev => ({
+      ...prev,
+      [originalName]: newName
     }));
   };
 
@@ -26,7 +34,7 @@ export default function HeaderConfigModal({ previewData, onConfirm, onCancel, fi
   };
 
   const handleConfirm = () => {
-    onConfirm(columnRules);
+    onConfirm({ rules: columnRules, columnNames });
   };
 
   if (!previewData) return null;
@@ -83,13 +91,29 @@ export default function HeaderConfigModal({ previewData, onConfirm, onCancel, fi
               {columns.map((col, idx) => {
                 const customRule = columnRules[col.name];
                 const hasCustom = customRule && customRule.type;
+                const displayName = columnNames[col.name] || col.name;
                 
                 return (
                   <tr key={idx} style={{
                     backgroundColor: hasCustom ? '#fff3cd' : (idx % 2 === 0 ? '#fff' : '#f9f9f9'),
                     borderBottom: '1px solid #eee'
                   }}>
-                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{col.name}</td>
+                    <td style={{ padding: '12px' }}>
+                      <input
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => handleColumnNameChange(col.name, e.target.value)}
+                        style={{
+                          padding: '6px',
+                          border: '1px solid #ddd',
+                          borderRadius: '4px',
+                          fontWeight: 'bold',
+                          width: '100%',
+                          boxSizing: 'border-box'
+                        }}
+                        placeholder={col.name}
+                      />
+                    </td>
                     <td style={{ padding: '12px', color: '#0066cc' }}>{col.detected_type}</td>
                     <td style={{ padding: '12px', fontSize: '12px', fontFamily: 'monospace' }}>
                       {col.system_rule ? (
