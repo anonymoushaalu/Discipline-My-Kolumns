@@ -522,26 +522,26 @@ def get_job_status(job_id: int):
 def get_rules():
     """Get all active rules"""
     try:
-        conn = engine.connect()
-        result = conn.execute(text("""
-            SELECT id, column_name, rule_type, rule_value, is_active
-            FROM rules
-            WHERE is_active = TRUE
-        """))
-        
-        rules = result.fetchall()
-        conn.close()
-        
-        return [
-            {
-                "id": r[0],
-                "column_name": r[1],
-                "rule_type": r[2],
-                "rule_value": r[3],
-                "is_active": r[4]
-            }
-            for r in rules
-        ]
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT id, column_name, rule_type, rule_value, is_active
+                FROM rules
+                WHERE is_active = TRUE
+                ORDER BY id DESC
+            """))
+            
+            rules = result.fetchall()
+            
+            return [
+                {
+                    "id": r[0],
+                    "column_name": r[1],
+                    "rule_type": r[2],
+                    "rule_value": r[3],
+                    "is_active": r[4]
+                }
+                for r in rules
+            ]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -561,6 +561,27 @@ def add_rule(column_name: str, rule_type: str, rule_value: str):
             })
             conn.commit()
         return {"message": "Rule added successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/rules/{rule_id}")
+def update_rule(rule_id: int, column_name: str, rule_type: str, rule_value: str):
+    """Update an existing validation rule"""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE rules
+                SET column_name = :column, rule_type = :type, rule_value = :value
+                WHERE id = :id
+            """), {
+                "column": column_name,
+                "type": rule_type,
+                "value": rule_value,
+                "id": rule_id
+            })
+            conn.commit()
+        return {"message": "Rule updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
